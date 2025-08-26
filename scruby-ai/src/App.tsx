@@ -4,20 +4,13 @@ import './App.css';
 
 import ArrowUpIcon from './assets/arrow-up.png';
 import ArrowUpWhiteIcon from './assets/arrow-up-white.png';
-import AudioLinesIcon from './assets/audio-lines.png';
 import CheckIcon from './assets/check.png';
 import MenuIcon from './assets/menu.png';
-import PlusIcon from './assets/plus.png';
 import TrashIcon from './assets/trash.png';
-import MicIcon from './assets/mic.png';
 import Logo from './assets/logo.png';
 import PlusWhiteIcon from './assets/plus-white.png';
 import XIcon from './assets/x.png';
-
-import {
-  transcribeAudio,
-  sendMessage as apiSendMessage,
-} from './services/apiService.js';
+import { sendMessage as apiSendMessage } from './services/apiService.js';
 
 interface Message {
   id: string;
@@ -39,7 +32,6 @@ export function App(props: { onRender?: () => void }) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState('');
   const [piiScrubbing, setPiiScrubbing] = useState(true);
-  const [isRecording, setIsRecording] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [hasStarted, setHasStarted] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -49,9 +41,6 @@ export function App(props: { onRender?: () => void }) {
   const [expandedTitles, setExpandedTitles] = useState<Set<string>>(new Set());
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string>('');
-  const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(
-    null,
-  );
 
   const [recordedAudio, setRecordedAudio] = useState<Blob | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -141,20 +130,6 @@ export function App(props: { onRender?: () => void }) {
     });
   }, []);
 
-  // Handle image upload
-  const handleImageUpload = useCallback((event: Event) => {
-    const target = event.target as HTMLInputElement;
-    const file = target.files?.[0];
-    if (file && file.type.startsWith('image/')) {
-      setSelectedImage(file);
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        setImagePreview(e.target?.result as string);
-      };
-      reader.readAsDataURL(file);
-    }
-  }, []);
-
   // Remove selected image
   const removeImage = useCallback(() => {
     setSelectedImage(null);
@@ -163,55 +138,6 @@ export function App(props: { onRender?: () => void }) {
       fileInputRef.current.value = '';
     }
   }, []);
-
-  // Start audio recording
-  const startAudioRecording = useCallback(async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const recorder = new MediaRecorder(stream, {
-        mimeType: 'audio/webm;codecs=opus',
-      });
-
-      const chunks: Blob[] = [];
-
-      recorder.ondataavailable = (event) => {
-        if (event.data.size > 0) {
-          chunks.push(event.data);
-        }
-      };
-
-      recorder.onstop = async () => {
-        const audioBlob = new Blob(chunks, { type: 'audio/webm;codecs=opus' });
-        setRecordedAudio(audioBlob);
-
-        console.log('Audio recorded:', audioBlob.size, 'bytes');
-
-        // Call transcription API
-        try {
-          const transcription = await transcribeAudio(audioBlob);
-          setInputText(transcription);
-        } catch (error) {
-          console.error('Transcription failed:', error);
-        }
-
-        // Stop all tracks
-        stream.getTracks().forEach((track) => track.stop());
-      };
-
-      setMediaRecorder(recorder);
-
-      recorder.start();
-    } catch (error) {
-      console.error('Error starting audio recording:', error);
-    }
-  }, []);
-
-  // Stop audio recording
-  const stopAudioRecording = useCallback(() => {
-    if (mediaRecorder && mediaRecorder.state === 'recording') {
-      mediaRecorder.stop();
-    }
-  }, [mediaRecorder]);
 
   const sendMessage = useCallback(async () => {
     if (!inputText.trim() && !selectedImage && !recordedAudio) return;
@@ -286,20 +212,6 @@ export function App(props: { onRender?: () => void }) {
     hasStarted,
     currentChatId,
   ]);
-
-  const toggleRecording = useCallback(() => {
-    if (hasStarted) return;
-
-    if (!isRecording) {
-      console.log('Starting audio recording...');
-      setIsRecording(true);
-      startAudioRecording();
-    } else {
-      console.log('Stopping audio recording...');
-      setIsRecording(false);
-      stopAudioRecording();
-    }
-  }, [isRecording, hasStarted, startAudioRecording, stopAudioRecording]);
 
   const showCenteredInput = messages.length === 0 && !hasStarted;
 
@@ -410,26 +322,6 @@ export function App(props: { onRender?: () => void }) {
 
             <view className="chatgpt-input-area">
               <view className="input-row-large">
-                <view
-                  className="add-btn"
-                  bindtap={() => fileInputRef.current?.click()}
-                >
-                  <image
-                    src={PlusIcon}
-                    className="plus-icon"
-                    style="width:16px;height:16px"
-                  />
-                </view>
-                {/* Hidden file input */}
-                {/* @ts-expect-error - dont remove! */}
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  style="display: none"
-                  bindinput={handleImageUpload}
-                />
-
                 <view className="input-wrapper-large">
                   {/* @ts-expect-error - dont remove! */}
                   <input
@@ -444,18 +336,6 @@ export function App(props: { onRender?: () => void }) {
                     bindconfirm={sendMessage}
                   />
                 </view>
-
-                <view
-                  className={`audio-btn ${isRecording ? 'recording' : ''}`}
-                  bindtap={toggleRecording}
-                >
-                  <image
-                    src={isRecording ? AudioLinesIcon : MicIcon}
-                    className="audio-icon"
-                    style="width:16px;height:16px"
-                  />
-                </view>
-
                 <view
                   className={`send-btn-large ${isLoading || (!inputText.trim() && !selectedImage && !recordedAudio) ? 'disabled' : ''}`}
                   bindtap={sendMessage}

@@ -10,35 +10,6 @@ export function analyzePII(text: string): PiiAnalysis {
   };
 }
 
-export async function uploadImage(imageFile: File): Promise<string> {
-  console.log(
-    'uploadImage called with:',
-    imageFile.name,
-    imageFile.type,
-    imageFile.size,
-  );
-  console.log('This image is being used:', imageFile.name);
-
-  // Simulate processing time
-  await new Promise((resolve) => setTimeout(resolve, 1000));
-
-  return `Image ${imageFile.name} processed successfully`;
-}
-
-export async function transcribeAudio(audioBlob: Blob): Promise<string> {
-  console.log(
-    'transcribeAudio called with audio blob:',
-    audioBlob.size,
-    'bytes',
-  );
-  console.log('Audio transcription in progress...');
-
-  // Simulate processing time
-  await new Promise((resolve) => setTimeout(resolve, 2000));
-
-  return 'This is a mock transcription of the audio recording';
-}
-
 export async function sendMessage(
   text: string,
   imageFile?: File,
