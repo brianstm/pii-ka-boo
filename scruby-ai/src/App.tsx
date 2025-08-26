@@ -207,9 +207,11 @@ export function App(props: { onRender?: () => void }) {
               <view
                 key={chat.id}
                 className={`history-item ${chat.id === currentChatId ? 'active' : ''}`}
-                bindtap={() => loadChat(chat)}
               >
-                <view className="history-content">
+                <view
+                  className="history-content"
+                  bindtap={() => loadChat(chat)}
+                >
                   <text className="history-title">{chat.title}</text>
                 </view>
                 <view
@@ -334,9 +336,10 @@ export function App(props: { onRender?: () => void }) {
                         bindtap={() => toggleTitleExpand(message.id)}
                       >
                         <text
-                          className={`prompt-text ${expandedTitles.has(message.id) ? 'expanded' : ''}`}
+                          className={`prompt-text ${expandedTitles.size > 0 && expandedTitles.has(message.id) ? 'expanded' : ''}`}
                         >
-                          {expandedTitles.has(message.id)
+                          {expandedTitles.size > 0 &&
+                          expandedTitles.has(message.id)
                             ? message.text
                             : message.text.length > 50
                               ? message.text.slice(0, 50) + '...'
