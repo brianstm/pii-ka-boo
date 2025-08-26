@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from '@lynx-js/react';
+import { useCallback, useEffect, useState, useRef } from '@lynx-js/react';
 
 import './App.css';
 
@@ -14,11 +14,18 @@ import Logo from './assets/logo.png';
 import PlusWhiteIcon from './assets/plus-white.png';
 import XIcon from './assets/x.png';
 
+import {
+  transcribeAudio,
+  sendMessage as apiSendMessage,
+} from './services/apiService.js';
+
 interface Message {
   id: string;
   text: string;
   isUser: boolean;
   timestamp: Date;
+  imageUrl?: string;
+  audioBlob?: Blob;
 }
 
 interface ChatHistory {
@@ -40,6 +47,14 @@ export function App(props: { onRender?: () => void }) {
   const [currentChatId, setCurrentChatId] = useState<string>('');
 
   const [expandedTitles, setExpandedTitles] = useState<Set<string>>(new Set());
+  const [selectedImage, setSelectedImage] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string>('');
+  const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(
+    null,
+  );
+
+  const [recordedAudio, setRecordedAudio] = useState<Blob | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setMessages([]);
@@ -126,8 +141,80 @@ export function App(props: { onRender?: () => void }) {
     });
   }, []);
 
-  const sendMessage = useCallback(() => {
-    if (!inputText.trim()) return;
+  // Handle image upload
+  const handleImageUpload = useCallback((event: Event) => {
+    const target = event.target as HTMLInputElement;
+    const file = target.files?.[0];
+    if (file && file.type.startsWith('image/')) {
+      setSelectedImage(file);
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setImagePreview(e.target?.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  }, []);
+
+  // Remove selected image
+  const removeImage = useCallback(() => {
+    setSelectedImage(null);
+    setImagePreview('');
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  }, []);
+
+  // Start audio recording
+  const startAudioRecording = useCallback(async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const recorder = new MediaRecorder(stream, {
+        mimeType: 'audio/webm;codecs=opus',
+      });
+
+      const chunks: Blob[] = [];
+
+      recorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          chunks.push(event.data);
+        }
+      };
+
+      recorder.onstop = async () => {
+        const audioBlob = new Blob(chunks, { type: 'audio/webm;codecs=opus' });
+        setRecordedAudio(audioBlob);
+
+        console.log('Audio recorded:', audioBlob.size, 'bytes');
+
+        // Call transcription API
+        try {
+          const transcription = await transcribeAudio(audioBlob);
+          setInputText(transcription);
+        } catch (error) {
+          console.error('Transcription failed:', error);
+        }
+
+        // Stop all tracks
+        stream.getTracks().forEach((track) => track.stop());
+      };
+
+      setMediaRecorder(recorder);
+
+      recorder.start();
+    } catch (error) {
+      console.error('Error starting audio recording:', error);
+    }
+  }, []);
+
+  // Stop audio recording
+  const stopAudioRecording = useCallback(() => {
+    if (mediaRecorder && mediaRecorder.state === 'recording') {
+      mediaRecorder.stop();
+    }
+  }, [mediaRecorder]);
+
+  const sendMessage = useCallback(async () => {
+    if (!inputText.trim() && !selectedImage && !recordedAudio) return;
     if (isLoading || hasStarted) return;
 
     setIsLoading(true);
@@ -143,37 +230,76 @@ export function App(props: { onRender?: () => void }) {
       text: inputText,
       isUser: true,
       timestamp: new Date(),
+      imageUrl: imagePreview,
+      audioBlob: recordedAudio || undefined,
     };
 
     setMessages((prev) => [...prev, userMessage]);
-    setInputText('');
 
-    setTimeout(() => {
+    // Clear inputs
+    const currentText = inputText;
+    const currentImage = selectedImage;
+    const currentAudio = recordedAudio;
+
+    setInputText('');
+    setSelectedImage(null);
+    setImagePreview('');
+    setRecordedAudio(null);
+
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+
+    try {
+      // Call API service with all data
+      const response = await apiSendMessage(
+        currentText,
+        currentImage || undefined,
+        currentAudio || undefined,
+      );
+
       const responseMessage: Message = {
         id: (Date.now() + 1).toString(),
-        text: 'hehe test test',
+        text: response,
         isUser: false,
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, responseMessage]);
+    } catch (error) {
+      console.error('Error sending message:', error);
+      const errorMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        text: 'Sorry, there was an error processing your request.',
+        isUser: false,
+        timestamp: new Date(),
+      };
+      setMessages((prev) => [...prev, errorMessage]);
+    } finally {
       setIsLoading(false);
-    }, 1000);
-  }, [inputText, isLoading, hasStarted, currentChatId]);
+    }
+  }, [
+    inputText,
+    selectedImage,
+    recordedAudio,
+    imagePreview,
+    isLoading,
+    hasStarted,
+    currentChatId,
+  ]);
 
   const toggleRecording = useCallback(() => {
     if (hasStarted) return;
 
-    setIsRecording((prev) => !prev);
-
     if (!isRecording) {
       console.log('Starting audio recording...');
+      setIsRecording(true);
+      startAudioRecording();
     } else {
       console.log('Stopping audio recording...');
-      setTimeout(() => {
-        setInputText('This is transcribed audio text');
-      }, 500);
+      setIsRecording(false);
+      stopAudioRecording();
     }
-  }, [isRecording, hasStarted]);
+  }, [isRecording, hasStarted, startAudioRecording, stopAudioRecording]);
 
   const showCenteredInput = messages.length === 0 && !hasStarted;
 
@@ -202,27 +328,30 @@ export function App(props: { onRender?: () => void }) {
         </view>
 
         <view className="history-list">
-          {chatHistory.map((chat) => (
-            <view
-              key={chat.id}
-              className={`history-item ${chat.id === currentChatId ? 'active' : ''}`}
-              bindtap={() => loadChat(chat)}
-            >
-              <view className="history-content">
-                <text className="history-title">{chat.title}</text>
-              </view>
+          {chatHistory.length > 0 &&
+            chatHistory.map((chat) => (
               <view
-                className="delete-chat-btn"
-                bindtap={() => deleteChat(chat.id)}
+                key={chat.id}
+                className={`history-item ${chat.id === currentChatId ? 'active' : ''}`}
               >
-                <image
-                  src={TrashIcon}
-                  className="trash-icon"
-                  style="width:14px;height:14px"
-                />
+                <view
+                  className="history-content"
+                  bindtap={() => loadChat(chat)}
+                >
+                  <text className="history-title">{chat.title}</text>
+                </view>
+                <view
+                  className="delete-chat-btn"
+                  bindtap={() => deleteChat(chat.id)}
+                >
+                  <image
+                    src={TrashIcon}
+                    className="trash-icon"
+                    style="width:14px;height:14px"
+                  />
+                </view>
               </view>
-            </view>
-          ))}
+            ))}
         </view>
 
         <view className="sidebar-footer">
@@ -263,15 +392,43 @@ export function App(props: { onRender?: () => void }) {
 
         {showCenteredInput ? (
           <view className="centered-input-container">
+            {/* Image Preview */}
+            {imagePreview && (
+              <view className="image-preview-container">
+                <view className="image-preview-wrapper">
+                  <image
+                    src={imagePreview}
+                    className="preview-image"
+                    style="max-width: 200px; max-height: 200px; border-radius: 8px;"
+                  />
+                  <view className="remove-image-btn" bindtap={removeImage}>
+                    <image src={XIcon} style="width: 16px; height: 16px;" />
+                  </view>
+                </view>
+              </view>
+            )}
+
             <view className="chatgpt-input-area">
               <view className="input-row-large">
-                <view className="add-btn" bindtap={() => console.log('Add')}>
+                <view
+                  className="add-btn"
+                  bindtap={() => fileInputRef.current?.click()}
+                >
                   <image
                     src={PlusIcon}
                     className="plus-icon"
                     style="width:16px;height:16px"
                   />
                 </view>
+                {/* Hidden file input */}
+                {/* @ts-expect-error - dont remove! */}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  style="display: none"
+                  bindinput={handleImageUpload}
+                />
 
                 <view className="input-wrapper-large">
                   {/* @ts-expect-error - dont remove! */}
@@ -300,14 +457,14 @@ export function App(props: { onRender?: () => void }) {
                 </view>
 
                 <view
-                  className={`send-btn-large ${isLoading || !inputText.trim() ? 'disabled' : ''}`}
+                  className={`send-btn-large ${isLoading || (!inputText.trim() && !selectedImage && !recordedAudio) ? 'disabled' : ''}`}
                   bindtap={sendMessage}
                 >
                   <image
                     src={
                       isLoading
                         ? CheckIcon
-                        : !inputText.trim()
+                        : !inputText.trim() && !selectedImage && !recordedAudio
                           ? ArrowUpIcon
                           : ArrowUpWhiteIcon
                     }
@@ -328,19 +485,37 @@ export function App(props: { onRender?: () => void }) {
                     className={`response-item ${message.isUser ? 'user-prompt' : 'ai-response'}`}
                   >
                     {message.isUser ? (
-                      <view
-                        className="prompt-title"
-                        bindtap={() => toggleTitleExpand(message.id)}
-                      >
-                        <text
-                          className={`prompt-text ${expandedTitles.has(message.id) ? 'expanded' : ''}`}
+                      <view className="user-message-content">
+                        {message.imageUrl && (
+                          <view className="message-image">
+                            <image
+                              src={message.imageUrl}
+                              style="max-width: 200px; max-height: 200px; border-radius: 8px; margin-bottom: 8px;"
+                            />
+                          </view>
+                        )}
+                        {message.audioBlob && (
+                          <view className="message-audio">
+                            <text style="font-size: 12px; color: #666; margin-bottom: 8px;">
+                              🎵 Audio message
+                            </text>
+                          </view>
+                        )}
+                        <view
+                          className="prompt-title"
+                          bindtap={() => toggleTitleExpand(message.id)}
                         >
-                          {expandedTitles.has(message.id)
-                            ? message.text
-                            : message.text.length > 50
-                              ? message.text.slice(0, 50) + '...'
-                              : message.text}
-                        </text>
+                          <text
+                            className={`prompt-text ${expandedTitles.size > 0 && expandedTitles.has(message.id) ? 'expanded' : ''}`}
+                          >
+                            {expandedTitles.size > 0 &&
+                            expandedTitles.has(message.id)
+                              ? message.text
+                              : message.text.length > 50
+                                ? message.text.slice(0, 50) + '...'
+                                : message.text}
+                          </text>
+                        </view>
                       </view>
                     ) : (
                       <view className="response-scrollable">

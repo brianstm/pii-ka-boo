@@ -946,3 +946,74 @@ body {
     font-size: 20px;
   }
 }
+
+.image-preview-container {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 16px;
+}
+
+.image-preview-wrapper {
+  position: relative;
+  display: block;
+  width: fit-content;
+}
+
+.preview-image {
+  border-radius: var(--border-radius-sm);
+  box-shadow: var(--shadow);
+}
+
+.remove-image-btn {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  width: 24px;
+  height: 24px;
+  background: rgba(0, 0, 0, 0.7);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.remove-image-btn:hover {
+  background: rgba(0, 0, 0, 0.9);
+}
+
+/* Message Content Styles */
+.user-message-content {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.message-image {
+  display: flex;
+  justify-content: center;
+}
+
+.message-audio {
+  display: flex;
+  align-items: center;
+  padding: 8px;
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: var(--border-radius-sm);
+}
+
+/* Recording Animation */
+.audio-btn.recording {
+  background: #ef4444;
+  animation: pulse-recording 1.5s ease-in-out infinite alternate;
+}
+
+@keyframes pulse-recording {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0.6;
+  }
+}
