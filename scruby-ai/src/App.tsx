@@ -202,27 +202,28 @@ export function App(props: { onRender?: () => void }) {
         </view>
 
         <view className="history-list">
-          {chatHistory.map((chat) => (
-            <view
-              key={chat.id}
-              className={`history-item ${chat.id === currentChatId ? 'active' : ''}`}
-              bindtap={() => loadChat(chat)}
-            >
-              <view className="history-content">
-                <text className="history-title">{chat.title}</text>
-              </view>
+          {chatHistory.length > 0 &&
+            chatHistory.map((chat) => (
               <view
-                className="delete-chat-btn"
-                bindtap={() => deleteChat(chat.id)}
+                key={chat.id}
+                className={`history-item ${chat.id === currentChatId ? 'active' : ''}`}
+                bindtap={() => loadChat(chat)}
               >
-                <image
-                  src={TrashIcon}
-                  className="trash-icon"
-                  style="width:14px;height:14px"
-                />
+                <view className="history-content">
+                  <text className="history-title">{chat.title}</text>
+                </view>
+                <view
+                  className="delete-chat-btn"
+                  bindtap={() => deleteChat(chat.id)}
+                >
+                  <image
+                    src={TrashIcon}
+                    className="trash-icon"
+                    style="width:14px;height:14px"
+                  />
+                </view>
               </view>
-            </view>
-          ))}
+            ))}
         </view>
 
         <view className="sidebar-footer">
