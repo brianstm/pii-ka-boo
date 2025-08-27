@@ -70,6 +70,7 @@ class ApiService {
   }
 
   async sendMessage(request: SendMessageRequest): Promise<SendMessageResponse> {
+    console.log("here");
     console.log("Sending message:", request);
 
     await new Promise((resolve) =>
