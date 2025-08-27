@@ -14,6 +14,23 @@ tok = AutoTokenizer.from_pretrained(MODEL_DIR)
 mdl = AutoModelForTokenClassification.from_pretrained(MODEL_DIR)
 mdl.eval()
 
+def extend_spans_to_word_end(spans, text, labels={"NAME","ADDRESS", "PHONE", "URL_PERSONAL", "USERNAME"}):
+    """
+    If a span ends in the middle of a word (common with subword splits),
+    extend it to the end of that word. E.g., '[NAME]onggo' -> '[NAME]'.
+    """
+    out = []
+    for s in spans:
+        if s["label"] in labels:
+            end = s["end"]
+            L = len(text)
+            # extend while next char is a word char or common name/addr joiners
+            while end < L and re.match(r"[A-Za-z0-9'’-]", text[end]):
+                end += 1
+            s = {"start": s["start"], "end": end, "label": s["label"]}
+        out.append(s)
+    return out
+
 def coalesce_same_label_spans(spans, text, max_gap_chars=2):
     """
     Merge consecutive spans with the same label if the gap between them is tiny
@@ -118,6 +135,7 @@ def redact(text, style="tags"):
 
     spans = merge_spans(keep)
     spans = coalesce_same_label_spans(spans, text, max_gap_chars=2)
+    spans = extend_spans_to_word_end(spans, text)
 
     out, last = [], 0
     for s in spans:
