@@ -2,8 +2,8 @@
 
 import sys
 import json
-
 import re
+from collections import defaultdict
 
 from transformers import AutoTokenizer, AutoModelForTokenClassification
 import torch
@@ -129,7 +129,7 @@ def redact(text, style="tags"):
     keep = r[:]  # always keep structured regex hits
     covered = {(s["start"], s["end"]) for s in r}
     for s in n:
-        # Always include model-detected NAME/ADDRESS; include others if regex didn’t already catch
+        # Always include model-detected NAME/ADDRESS; include others if regex didn't already catch
         if s["label"] in {"NAME","ADDRESS"} or (s["start"], s["end"]) not in covered:
             keep.append(s)
 
@@ -137,10 +137,25 @@ def redact(text, style="tags"):
     spans = coalesce_same_label_spans(spans, text, max_gap_chars=2)
     spans = extend_spans_to_word_end(spans, text)
 
+    # Create a mapping from original text to entity numbers
+    entity_counter = defaultdict(int)
+    entity_map = {}
+    
+    # First pass: identify unique entities and assign numbers
+    for span in spans:
+        entity_text = text[span["start"]:span["end"]]
+        if entity_text not in entity_map:
+            entity_counter[span["label"]] += 1
+            entity_map[entity_text] = entity_counter[span["label"]]
+        span["entity_id"] = entity_map[entity_text]
+
     out, last = [], 0
     for s in spans:
         out.append(text[last:s["start"]])
-        token = f"[{s['label']}]" if style=="tags" else "█"*(s["end"]-s["start"])
+        if style == "tags":
+            token = f"[{s['label']}_{s['entity_id']}]"
+        else:
+            token = "█"*(s["end"]-s["start"])
         out.append(token)
         last = s["end"]
     out.append(text[last:])
@@ -149,7 +164,6 @@ def redact(text, style="tags"):
 def call_model(text):
     red, spans = redact(text, style="tags")
     return red
-
 
 def greet(name):
     return f"Hello from Python, {name}!"
