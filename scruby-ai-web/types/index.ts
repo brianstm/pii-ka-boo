@@ -6,6 +6,7 @@ export interface ChatMessage {
   type: 'text' | 'image' | 'audio';
   imageUrl?: string;
   audioUrl?: string;
+  provider?: 'robot' | 'gemini';
 }
 
 export interface ChatSession {

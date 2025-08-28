@@ -1,11 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import {
-  ChatSession,
-  ChatMessage as ChatMessageType,
-  AppSettings,
-} from "@/types";
+import { ChatMessage as ChatMessageType, AppSettings } from "@/types";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { apiService } from "@/services/apiService";
 import { ChatMessage } from "./ChatMessage";
@@ -14,7 +10,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
-import { Loader2, Shield, Plus } from "lucide-react";
+import { Loader2, Plus } from "lucide-react";
 import { v4 as uuidv4 } from "uuid";
 import Image from "next/image";
 import {
@@ -27,45 +23,20 @@ import {
 } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
 import { Moon, Sun, Settings } from "lucide-react";
+import { replacePlaceholdersFromOriginal } from "@/services/piiReplacementService";
 
 export function ChatInterface() {
-  const [sessions, setSessions] = useLocalStorage<ChatSession[]>(
-    "chatSessions",
-    []
-  );
+  const [messages, setMessages] = useState<ChatMessageType[]>([]);
   const [settings, setSettings] = useLocalStorage<AppSettings>("appSettings", {
     piiEnabled: true,
     darkMode: false,
   });
   const [settingsOpen, setSettingsOpen] = useState(false);
 
-  const [currentSessionId, setCurrentSessionId] = useState<
-    string | undefined
-  >();
   const [isLoading, setIsLoading] = useState(false);
+  const [chatLocked, setChatLocked] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
-
-  const [imageCounter, setImageCounter] = useLocalStorage("imageCounter", 1);
-  const [audioCounter, setAudioCounter] = useLocalStorage("audioCounter", 1);
-
-  const currentSession = sessions.find((s) => s.id === currentSessionId);
-
-  const generateTitle = (
-    message: string,
-    image?: File,
-    audio?: File
-  ): string => {
-    if (image && !message.trim() && !audio) {
-      return `Image ${imageCounter}`;
-    }
-    if (audio && !message.trim() && !image) {
-      return `Audio Recording ${audioCounter}`;
-    }
-    if (message.trim()) {
-      return message.length > 30 ? message.slice(0, 30) + "..." : message;
-    }
-    return "New Chat";
-  };
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (settings.darkMode) {
@@ -76,45 +47,25 @@ export function ChatInterface() {
   }, [settings.darkMode]);
 
   useEffect(() => {
-    if (scrollAreaRef.current) {
-      const scrollContainer = scrollAreaRef.current.querySelector(
-        "[data-radix-scroll-area-viewport]"
-      );
-      if (scrollContainer) {
-        scrollContainer.scrollTop = scrollContainer.scrollHeight;
+    // Allow DOM to paint before scrolling
+    const id = window.setTimeout(() => {
+      if (messagesEndRef.current) {
+        messagesEndRef.current.scrollIntoView({
+          behavior: "smooth",
+          block: "end",
+        });
+      } else if (scrollAreaRef.current) {
+        const viewport = scrollAreaRef.current.querySelector(
+          "[data-radix-scroll-area-viewport]"
+        ) as HTMLElement | null;
+        if (viewport) viewport.scrollTop = viewport.scrollHeight;
       }
-    }
-  }, [currentSession?.messages]);
-
-  const createNewSession = (): ChatSession => {
-    const newSession: ChatSession = {
-      id: uuidv4(),
-      title: "New Chat",
-      messages: [],
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
-    return newSession;
-  };
+    }, 0);
+    return () => window.clearTimeout(id);
+  }, [messages, isLoading]);
 
   const handleDarkModeToggle = (enabled: boolean) => {
     setSettings((prev) => ({ ...prev, darkMode: enabled }));
-  };
-
-  useEffect(() => {
-    if (sessions.length === 0 && !currentSessionId) {
-      const newSession = createNewSession();
-      setSessions([newSession]);
-      setCurrentSessionId(newSession.id);
-    } else if (sessions.length > 0 && !currentSessionId) {
-      setCurrentSessionId(sessions[0].id);
-    }
-  }, [sessions, currentSessionId, setSessions]);
-
-  const handleNewChat = () => {
-    const newSession = createNewSession();
-    setSessions((prev) => [newSession, ...prev]);
-    setCurrentSessionId(newSession.id);
   };
 
   const handleSendMessage = async (
@@ -123,15 +74,6 @@ export function ChatInterface() {
     audio?: File
   ) => {
     if (!message.trim() && !image && !audio) return;
-
-    let sessionId = currentSessionId;
-
-    if (!sessionId) {
-      const newSession = createNewSession();
-      setSessions((prev) => [newSession, ...prev]);
-      sessionId = newSession.id;
-      setCurrentSessionId(sessionId);
-    }
 
     let finalMessage = message;
     if (audio && !message.trim()) {
@@ -143,8 +85,6 @@ export function ChatInterface() {
       }
     }
 
-    const title = generateTitle(finalMessage, image, audio);
-
     const userMessage: ChatMessageType = {
       id: uuidv4(),
       role: "user",
@@ -155,51 +95,13 @@ export function ChatInterface() {
       audioUrl: audio ? URL.createObjectURL(audio) : undefined,
     };
 
-    setSessions((prev) =>
-      prev.map((session) => {
-        if (session.id === sessionId) {
-          const shouldUpdateTitle = session.messages.length === 0;
-          const newTitle = shouldUpdateTitle ? title : session.title;
-
-          let updatedMessages: ChatMessageType[];
-          if (shouldUpdateTitle) {
-            const promptMessage: ChatMessageType = {
-              id: uuidv4(),
-              role: "user",
-              content: finalMessage,
-              timestamp: new Date(),
-              type: image ? "image" : audio ? "audio" : "text",
-              imageUrl: image ? URL.createObjectURL(image) : undefined,
-              audioUrl: audio ? URL.createObjectURL(audio) : undefined,
-            };
-            updatedMessages = [...session.messages, promptMessage];
-          } else {
-            updatedMessages = [...session.messages, userMessage];
-          }
-
-          if (shouldUpdateTitle) {
-            if (image && !finalMessage.trim() && !audio) {
-              setImageCounter((prev) => prev + 1);
-            }
-            if (audio && !finalMessage.trim() && !image) {
-              setAudioCounter((prev) => prev + 1);
-            }
-          }
-
-          return {
-            ...session,
-            messages: updatedMessages,
-            title: newTitle,
-            updatedAt: new Date(),
-          };
-        }
-        return session;
-      })
-    );
+    setMessages((prev) => [...prev, userMessage]);
 
     setIsLoading(true);
+    setChatLocked(true);
 
     try {
+      // API response
       const response = await apiService.sendMessage({
         message: finalMessage,
         image,
@@ -215,19 +117,36 @@ export function ChatInterface() {
         type: response.type,
         imageUrl: response.imageUrl,
         audioUrl: response.audioUrl,
+        provider: "robot",
       };
+      setMessages((prev) => [...prev, assistantMessage]);
 
-      setSessions((prev) =>
-        prev.map((session) =>
-          session.id === sessionId
-            ? {
-                ...session,
-                messages: [...session.messages, assistantMessage],
-                updatedAt: new Date(),
-              }
-            : session
-        )
+      // Gemini response uses robot response as input
+      const gemini = await apiService.callGemini(response.message);
+      const geminiMessage: ChatMessageType = {
+        id: uuidv4(),
+        role: "assistant",
+        content: gemini.message,
+        timestamp: new Date(),
+        type: "text",
+        provider: "gemini",
+      };
+      setMessages((prev) => [...prev, geminiMessage]);
+
+      // Replace placeholders back using original message
+      const restored = replacePlaceholdersFromOriginal(
+        finalMessage,
+        gemini.message
       );
+      const restoredMessage: ChatMessageType = {
+        id: uuidv4(),
+        role: "assistant",
+        content: restored,
+        timestamp: new Date(),
+        type: "text",
+        provider: "robot",
+      };
+      setMessages((prev) => [...prev, restoredMessage]);
     } catch (error) {
       console.error("Failed to send message:", error);
 
@@ -240,17 +159,7 @@ export function ChatInterface() {
         type: "text",
       };
 
-      setSessions((prev) =>
-        prev.map((session) =>
-          session.id === sessionId
-            ? {
-                ...session,
-                messages: [...session.messages, errorMessage],
-                updatedAt: new Date(),
-              }
-            : session
-        )
-      );
+      setMessages((prev) => [...prev, errorMessage]);
     } finally {
       setIsLoading(false);
     }
@@ -294,7 +203,6 @@ export function ChatInterface() {
                   </DialogHeader>
 
                   <div className="space-y-6 py-4">
-
                     <Separator />
 
                     <div className="flex items-center justify-between">
@@ -324,66 +232,65 @@ export function ChatInterface() {
         </div>
 
         <div className="flex-1 flex flex-col">
-          {currentSession?.messages.length === 0 ? (
-            <div className="flex-1 flex flex-col items-center justify-center px-4">
-              <div className="text-center space-y-6 max-w-md animate-in fade-in-50 duration-500">
-                <div className="space-y-2 animate-in slide-in-from-bottom-4 duration-500">
-                  <h3 className="text-3xl font-semibold">
-                    Let the suffering end...
-                  </h3>
-                </div>
-              </div>
+          <>
+            <ScrollArea
+              className="flex-1 transition-all duration-300 mb-10 mt-6"
+              ref={scrollAreaRef}
+            >
+              <div className="max-w-4xl mx-auto px-4">
+                {messages.length === 0 && (
+                  <div className="text-center space-y-6 max-w-md mx-auto py-16 opacity-80">
+                    <h3 className="text-3xl font-semibold">
+                      Let the suffering end...
+                    </h3>
+                  </div>
+                )}
 
-              <div className="w-full max-w-3xl">
-                <ChatInput
-                  onSendMessage={handleSendMessage}
-                  isLoading={isLoading}
-                  piiEnabled={settings.piiEnabled}
-                  hasMessages={false}
-                />
-              </div>
-            </div>
-          ) : (
-            <>
-              <ScrollArea
-                className="flex-1 transition-all duration-300"
-                ref={scrollAreaRef}
-              >
-                <div className="max-w-4xl mx-auto px-4">
-                  {currentSession?.messages.map((message, index) => (
-                    <div
-                      key={message.id}
-                      className="animate-in slide-in-from-bottom-4 duration-500"
-                      style={{ animationDelay: `${index * 100}ms` }}
-                    >
-                      <ChatMessage message={message} />
+                {messages.map((message, index) => (
+                  <div
+                    key={message.id}
+                    className="animate-in slide-in-from-bottom-4 duration-500"
+                    style={{ animationDelay: `${index * 100}ms` }}
+                  >
+                    <ChatMessage message={message} />
+                  </div>
+                ))}
+
+                {isLoading && (
+                  <div className="flex gap-3 p-4 animate-in slide-in-from-bottom-2 duration-300">
+                    <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
+                      <Loader2 className="w-4 h-4 animate-spin" />
                     </div>
-                  ))}
-
-                  {isLoading && (
-                    <div className="flex gap-3 p-4 animate-in slide-in-from-bottom-2 duration-300">
-                      <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
+                    <Card className="p-3 bg-muted animate-pulse">
+                      <div className="flex items-center gap-2 text-muted-foreground">
                         <Loader2 className="w-4 h-4 animate-spin" />
+                        <span className="text-sm">
+                          ScrubbyAI is thinking...
+                        </span>
                       </div>
-                      <Card className="p-3 bg-muted animate-pulse">
-                        <div className="flex items-center gap-2 text-muted-foreground">
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                          <span className="text-sm">
-                            ScrubbyAI is thinking...
-                          </span>
-                        </div>
-                      </Card>
-                    </div>
-                  )}
-                </div>
-              </ScrollArea>
-            </>
-          )}
+                    </Card>
+                  </div>
+                )}
+                <div ref={messagesEndRef} />
+              </div>
+            </ScrollArea>
+          </>
         </div>
 
-        {currentSession && currentSession.messages.length > 0 && (
+        {!chatLocked && (
+          <div className="w-full max-w-3xl mx-auto">
+            <ChatInput
+              onSendMessage={handleSendMessage}
+              isLoading={isLoading}
+              piiEnabled={settings.piiEnabled}
+              hasMessages={messages.length > 0}
+            />
+          </div>
+        )}
+
+        {messages.length > 0 && (
           <Button
-            onClick={handleNewChat}
+            onClick={() => window.location.reload()}
             className="fixed bottom-6 right-6 rounded-full h-14 w-14 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-110 animate-in slide-in-from-bottom-8 delay-300 group"
             size="lg"
           >

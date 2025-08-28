@@ -161,7 +161,7 @@ export function ChatInput({
     }
   }, []);
 
-  const inputDisabled = hasMessages || isLoading;
+  const inputDisabled = isLoading;
 
   return (
     <div className={hasMessages ? "border-t bg-background p-6" : "p-6"}>
