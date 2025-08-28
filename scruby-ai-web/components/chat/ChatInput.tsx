@@ -12,7 +12,6 @@ import { FileUpload } from "@/types";
 interface ChatInputProps {
   onSendMessage: (message: string, image?: File, audio?: File) => void;
   isLoading: boolean;
-  piiEnabled: boolean;
   hasMessages: boolean;
 }
 
@@ -161,7 +160,7 @@ export function ChatInput({
     }
   }, []);
 
-  const inputDisabled = hasMessages || isLoading;
+  const inputDisabled = isLoading;
 
   return (
     <div className={hasMessages ? "border-t bg-background p-6" : "p-6"}>

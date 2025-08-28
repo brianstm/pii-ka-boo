@@ -32,6 +32,10 @@ export interface SendMessageResponse {
   imageUrl?: string;
 }
 
+export interface GeminiResponse {
+  message: string;
+}
+
 class ApiService {
   private axiosInstance: AxiosInstance;
 
@@ -94,7 +98,6 @@ class ApiService {
         type: "text",
       };
     } else {
-      // 🔥 call your Next.js API
       const res = await fetch("/api/text", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -115,6 +118,19 @@ class ApiService {
 
     console.log("API Response:", response);
     return response;
+  }
+
+  async callGemini(message: string): Promise<GeminiResponse> {
+    const res = await fetch("/api/gemini", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message }),
+    });
+    if (!res.ok) {
+      throw new Error(`Gemini API request failed: ${res.statusText}`);
+    }
+    const data = await res.json();
+    return { message: data.response };
   }
 
   async transcribeAudio(audioFile: File): Promise<string> {
