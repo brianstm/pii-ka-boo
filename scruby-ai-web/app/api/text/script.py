@@ -92,18 +92,25 @@ PII_PATTERNS = {
     "USERNAME": re.compile(r"@\w{1,32}")
 }
 
-def regex_spans(text):
-    """Extract PII spans using regex patterns."""
+def regex_spans(text, target_labels=None):
+    """Extract PII spans using regex patterns, optionally filtered by target labels."""
     out = []
     for label, pattern in PII_PATTERNS.items():
+        if target_labels and label not in target_labels:
+            continue
         for m in pattern.finditer(text):
             out.append({"start": m.start(), "end": m.end(), "label": label})
     return out
 
-def ner_spans(text):
-    """Get named entity recognition spans."""
+def ner_spans(text, target_labels=None):
+    """Get named entity recognition spans, optionally filtered by target labels."""
     tags, offs = predict_tags(text)
-    return bio_to_char_spans(offs, tags)
+    spans = bio_to_char_spans(offs, tags)
+    
+    if target_labels:
+        spans = [span for span in spans if span["label"] in target_labels]
+    
+    return spans
 
 def merge_spans(spans):
     """Merge overlapping spans."""
@@ -117,25 +124,49 @@ def merge_spans(spans):
                 merged[-1] = s
     return merged
 
-def redact(text):
-    """Redact PII entities with unique identifiers."""
-    regex_matches = regex_spans(text)
-    ner_matches = ner_spans(text)
+def redact(text, target_labels=None):
+    """
+    Redact PII entities with unique identifiers.
+    
+    Args:
+        text: Input text to redact
+        target_labels: Set of labels to redact (e.g., {"NAME", "PHONE"}).
+                     If None, redacts all detected PII.
+    """
+    # Get all available labels from both regex and NER
+    all_regex_labels = set(PII_PATTERNS.keys())
+    all_ner_labels = set(mdl.config.id2label.values())
+    all_ner_labels = {label.split("-", 1)[1] for label in all_ner_labels if "-" in label}
+    
+    # If target_labels is specified, use only those labels
+    if target_labels:
+        target_labels = set(target_labels)
+        regex_matches = regex_spans(text, target_labels)
+        ner_matches = ner_spans(text, target_labels)
+    else:
+        # Redact all detected PII (original behavior)
+        regex_matches = regex_spans(text)
+        ner_matches = ner_spans(text)
 
     keep = regex_matches[:]
     covered = {(s["start"], s["end"]) for s in regex_matches}
     
     for s in ner_matches:
-        if s["label"] in {"NAME", "ADDRESS"} or (s["start"], s["end"]) not in covered:
+        if (s["label"] in {"NAME", "ADDRESS"} or 
+            (s["start"], s["end"]) not in covered):
             keep.append(s)
 
     spans = merge_spans(keep)
     spans = coalesce_same_label_spans(spans, text, max_gap_chars=2)
-    spans = extend_spans_to_word_end(spans, text, labels={"NAME", "ADDRESS"})
+    
+    # Only extend word endings for NAME and ADDRESS if they're in target labels
+    extend_labels = {"NAME", "ADDRESS"}
+    if target_labels:
+        extend_labels = extend_labels.intersection(target_labels)
+    spans = extend_spans_to_word_end(spans, text, labels=extend_labels)
 
     # Count occurrences of each entity type
     entity_counters = defaultdict(int)
-    entity_map = {}
 
     for span in spans:
         label = span["label"]
@@ -153,6 +184,17 @@ def redact(text):
     return "".join(out)
 
 if __name__ == "__main__":
-    text = sys.argv[1] if len(sys.argv) > 1 else "world"
-    result = redact(text)
+    # Read arguments from Node.js
+    if len(sys.argv) > 2:
+        # If specific labels are provided as second argument
+        text = sys.argv[1]
+        labels = json.loads(sys.argv[2])  # Expecting JSON array of labels
+        result = redact(text, target_labels=labels)
+    elif len(sys.argv) > 1:
+        # If only text is provided, redact all PII
+        text = sys.argv[1]
+        result = redact(text)
+    else:
+        result = "No input provided"
+    
     print(json.dumps({"response": result}))
