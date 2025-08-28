@@ -8,7 +8,6 @@ import {
 } from "@/types";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { apiService } from "@/services/apiService";
-import { ChatSidebar } from "./ChatSidebar";
 import { ChatMessage } from "./ChatMessage";
 import { ChatInput } from "./ChatInput";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -17,6 +16,17 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Loader2, Shield, Plus } from "lucide-react";
 import { v4 as uuidv4 } from "uuid";
+import Image from "next/image";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Separator } from "@/components/ui/separator";
+import { Moon, Sun, Settings } from "lucide-react";
 
 export function ChatInterface() {
   const [sessions, setSessions] = useLocalStorage<ChatSession[]>(
@@ -27,12 +37,12 @@ export function ChatInterface() {
     piiEnabled: true,
     darkMode: false,
   });
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   const [currentSessionId, setCurrentSessionId] = useState<
     string | undefined
   >();
   const [isLoading, setIsLoading] = useState(false);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
 
   const [imageCounter, setImageCounter] = useLocalStorage("imageCounter", 1);
@@ -87,6 +97,10 @@ export function ChatInterface() {
     return newSession;
   };
 
+  const handleDarkModeToggle = (enabled: boolean) => {
+    setSettings((prev) => ({ ...prev, darkMode: enabled }));
+  };
+
   useEffect(() => {
     if (sessions.length === 0 && !currentSessionId) {
       const newSession = createNewSession();
@@ -101,18 +115,6 @@ export function ChatInterface() {
     const newSession = createNewSession();
     setSessions((prev) => [newSession, ...prev]);
     setCurrentSessionId(newSession.id);
-  };
-
-  const handleSelectSession = (sessionId: string) => {
-    setCurrentSessionId(sessionId);
-  };
-
-  const handleDeleteSession = (sessionId: string) => {
-    setSessions((prev) => prev.filter((s) => s.id !== sessionId));
-    if (currentSessionId === sessionId) {
-      const remaining = sessions.filter((s) => s.id !== sessionId);
-      setCurrentSessionId(remaining.length > 0 ? remaining[0].id : undefined);
-    }
   };
 
   const handleSendMessage = async (
@@ -254,41 +256,69 @@ export function ChatInterface() {
     }
   };
 
-  const handlePiiToggle = (enabled: boolean) => {
-    setSettings((prev) => ({ ...prev, piiEnabled: enabled }));
-  };
-
-  const handleDarkModeToggle = (enabled: boolean) => {
-    setSettings((prev) => ({ ...prev, darkMode: enabled }));
-  };
-
   return (
     <div className="flex h-screen bg-background">
-      <ChatSidebar
-        sessions={sessions}
-        currentSessionId={currentSessionId}
-        onNewChat={handleNewChat}
-        onSelectSession={handleSelectSession}
-        onDeleteSession={handleDeleteSession}
-        piiEnabled={settings.piiEnabled}
-        onPiiToggle={handlePiiToggle}
-        darkMode={settings.darkMode}
-        onDarkModeToggle={handleDarkModeToggle}
-        collapsed={sidebarCollapsed}
-        onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
-      />
-
       <div className="flex-1 flex flex-col relative">
         <div className="border-b p-4 flex items-center justify-between transition-all duration-300">
-          <div className="flex items-center gap-3 flex-shrink-0">
-            <div className="flex items-center gap-2 p-2 rounded-lg hover:bg-accent/50 transition-colors duration-200">
-              <Shield className="w-4 h-4 text-muted-foreground" />
-              <span className="text-sm font-medium">PII Scrubbing</span>
-              <Switch
-                checked={settings.piiEnabled}
-                onCheckedChange={handlePiiToggle}
-                className="transition-all duration-200"
-              />
+          <div className="flex justify-between gap-3 w-full">
+            <div className="flex items-center gap-2">
+              <div className="relative w-8 h-8">
+                <Image
+                  src="/logo.png"
+                  alt="ScrubbyAI Logo"
+                  fill
+                  className="object-contain"
+                />
+              </div>
+              <h1 className="text-md font-bold">ScrubbyAI</h1>
+            </div>
+
+            <div>
+              <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
+                <DialogTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    className="w-full justify-start"
+                    size="sm"
+                  >
+                    <Settings className="w-4 h-4 mr-2" />
+                    Settings
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Settings</DialogTitle>
+                    <DialogDescription>
+                      Configure your ScrubbyAI preferences
+                    </DialogDescription>
+                  </DialogHeader>
+
+                  <div className="space-y-6 py-4">
+
+                    <Separator />
+
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-0.5">
+                        <div className="flex items-center gap-2">
+                          {settings.darkMode ? (
+                            <Moon className="w-4 h-4" />
+                          ) : (
+                            <Sun className="w-4 h-4" />
+                          )}
+                          <span className="font-medium">Dark Mode</span>
+                        </div>
+                        <p className="text-sm text-muted-foreground">
+                          Toggle between light and dark themes
+                        </p>
+                      </div>
+                      <Switch
+                        checked={settings.darkMode}
+                        onCheckedChange={handleDarkModeToggle}
+                      />
+                    </div>
+                  </div>
+                </DialogContent>
+              </Dialog>
             </div>
           </div>
         </div>

@@ -268,10 +268,10 @@ export function ChatInput({
               variant="ghost"
               size="sm"
               onClick={() => fileInputRef.current?.click()}
-              className="h-10 w-10 p-0 rounded-full hover:bg-accent transition-colors duration-200"
+              className="h-10 w-10 p-0 rounded-full hover:bg-accent transition-colors duration-200 group"
               disabled={inputDisabled || !!uploadedFile}
             >
-              <Plus className="w-5 h-5" />
+              <Plus className="w-5 h-5 transition-transform duration-200 group-hover:rotate-45" />
             </Button>
 
             <div className="flex-1 relative">
@@ -284,7 +284,7 @@ export function ChatInput({
                     ? "Message disabled for this conversation"
                     : "Message ScrubbyAI..."
                 }
-                className="min-h-8 max-h-32 resize-none bg-background bg-none dark:bg-background dark:bg-none border-0 py-2.5 px-3 text-base placeholder:text-muted-foreground focus-visible:ring-0 focus-visible:ring-offset-0 scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent justify-center"
+                className="min-h-8 max-h-32 resize-none bg-background bg-none dark:bg-background dark:bg-none border-0 py-2.5 px-3 text-base placeholder:text-muted-foreground focus-visible:ring-0 focus-visible:ring-offset-0 scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent justify-center border-none shadow-none"
                 disabled={inputDisabled}
                 style={{ lineHeight: "1.5" }}
               />
