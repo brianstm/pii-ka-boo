@@ -298,7 +298,9 @@ export function ChatInterface() {
             <div className="flex-1 flex flex-col items-center justify-center px-4">
               <div className="text-center space-y-6 max-w-md animate-in fade-in-50 duration-500">
                 <div className="space-y-2 animate-in slide-in-from-bottom-4 duration-500">
-                  <h3 className="text-3xl font-semibold">WHAT U WANT SIAL</h3>
+                  <h3 className="text-3xl font-semibold">
+                    Let the suffering end...
+                  </h3>
                 </div>
               </div>
 

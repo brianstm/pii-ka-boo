@@ -70,11 +70,8 @@ class ApiService {
   }
 
   async sendMessage(request: SendMessageRequest): Promise<SendMessageResponse> {
+    console.log("here");
     console.log("Sending message:", request);
-
-    await new Promise((resolve) =>
-      setTimeout(resolve, 1000 + Math.random() * 2000)
-    );
 
     let response: SendMessageResponse;
 
@@ -97,17 +94,26 @@ class ApiService {
         type: "text",
       };
     } else {
+      // 🔥 call your Next.js API
+      const res = await fetch("/api/text", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: request.message }),
+      });
+
+      if (!res.ok) {
+        throw new Error(`API request failed: ${res.statusText}`);
+      }
+
+      const data = await res.json();
+
       response = {
-        message: `text! ${
-          request.piiEnabled
-            ? "PII scrubbing is enabled."
-            : "PII scrubbing is disabled."
-        }`,
+        message: data.response, // comes from Python JSON { "response": ... }
         type: "text",
       };
     }
 
-    console.log("Mock API Response:", response);
+    console.log("API Response:", response);
     return response;
   }
 
