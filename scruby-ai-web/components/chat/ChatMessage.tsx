@@ -180,7 +180,7 @@ export function ChatMessage({ message }: ChatMessageProps) {
               variant="ghost"
               size="icon"
               onClick={handleCopy}
-              className="absolute -bottom-5 -right-2 h-7 w-22 rounded-full opacity-0 bg-primary/50 hover:bg-primary/80 group-hover:opacity-100 transition-opacity z-10 text-black/70 hover:text-white"
+              className="absolute -bottom-5 -right-2 h-7 w-22 rounded-full opacity-0 bg-primary/20 hover:bg-primary/80 group-hover:opacity-100 transition-opacity z-10 text-black/70 hover:text-white"
             >
               {copied ? (
                 <>

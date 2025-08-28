@@ -12,7 +12,6 @@ import { FileUpload } from "@/types";
 interface ChatInputProps {
   onSendMessage: (message: string, image?: File, audio?: File) => void;
   isLoading: boolean;
-  piiEnabled: boolean;
   hasMessages: boolean;
 }
 

@@ -237,12 +237,26 @@ export function ChatInterface() {
               className="flex-1 transition-all duration-300 mb-10 mt-6"
               ref={scrollAreaRef}
             >
-              <div className="max-w-4xl mx-auto px-4">
+              <div
+                className={`max-w-4xl mx-auto px-4 ${
+                  messages.length === 0 ? "mt-64" : "mt-0"
+                }`}
+              >
                 {messages.length === 0 && (
-                  <div className="text-center space-y-6 max-w-md mx-auto py-16 opacity-80">
+                  <div className="text-center space-y-2 max-w-md mx-auto pb-3 opacity-80">
                     <h3 className="text-3xl font-semibold">
                       Let the suffering end...
                     </h3>
+                  </div>
+                )}
+
+                {!chatLocked && (
+                  <div className="w-full max-w-3xl mx-auto">
+                    <ChatInput
+                      onSendMessage={handleSendMessage}
+                      isLoading={isLoading}
+                      hasMessages={messages.length > 0}
+                    />
                   </div>
                 )}
 
@@ -276,17 +290,6 @@ export function ChatInterface() {
             </ScrollArea>
           </>
         </div>
-
-        {!chatLocked && (
-          <div className="w-full max-w-3xl mx-auto">
-            <ChatInput
-              onSendMessage={handleSendMessage}
-              isLoading={isLoading}
-              piiEnabled={settings.piiEnabled}
-              hasMessages={messages.length > 0}
-            />
-          </div>
-        )}
 
         {messages.length > 0 && (
           <Button
