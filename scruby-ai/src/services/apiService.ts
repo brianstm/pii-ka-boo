@@ -15,26 +15,24 @@ export async function sendMessage(
   imageFile?: File,
   audioBlob?: Blob,
 ): Promise<string> {
-  console.log('sendMessage called with:');
-  console.log('- Text:', text);
-  if (imageFile) {
-    console.log('- Image file:', imageFile.name);
-  }
-  if (audioBlob) {
-    console.log('- Audio blob:', audioBlob.size, 'bytes');
-  }
+  // Call local Next API /api/text
+  const res = await fetch('http://localhost:3000/api/text', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ message: text }),
+  });
+  if (!res.ok) throw new Error('text API error');
+  const data = await res.json();
+  return data.response || '';
+}
 
-  // Simulate API call
-  await new Promise((resolve) => setTimeout(resolve, 1500));
-
-  let response = 'AI Response: ';
-  if (imageFile) {
-    response += `I can see the image "${imageFile.name}". `;
-  }
-  if (audioBlob) {
-    response += 'I heard your audio message. ';
-  }
-  response += `Regarding your text: "${text}"`;
-
-  return response;
+export async function callGemini(text: string): Promise<string> {
+  const res = await fetch('http://localhost:3000/api/gemini', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ message: text }),
+  });
+  if (!res.ok) throw new Error('gemini API error');
+  const data = await res.json();
+  return data.response || '';
 }
