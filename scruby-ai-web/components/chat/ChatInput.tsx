@@ -18,9 +18,18 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import { FileUpload } from "@/types";
+import { fileStorageService } from "@/services/fileStorageService";
 
 interface ChatInputProps {
-  onSendMessage: (message: string, image?: File, audio?: File) => void;
+  onSendMessage: (
+    message: string,
+    image?: File,
+    audio?: File,
+    imageUrl?: string,
+    audioUrl?: string,
+    imageFilename?: string,
+    audioFilename?: string
+  ) => void;
   isLoading: boolean;
   hasMessages: boolean;
 }
@@ -69,15 +78,38 @@ export function ChatInput({
             audioRef.current.duration > 0
           ) {
             setAudioDuration(audioRef.current.duration);
-          } else if (attempts < 10) {
-            setTimeout(() => tryGetDuration(attempts + 1), 100);
+          } else if (attempts < 20) {
+            setTimeout(() => tryGetDuration(attempts + 1), 50);
           }
         };
-
         tryGetDuration();
       }
     }
   }, [uploadedFile]);
+
+  useEffect(() => {
+    if (
+      uploadedFile?.type === "audio" &&
+      uploadedFile.preview &&
+      audioRef.current
+    ) {
+      const tryGetDuration = (attempts = 0) => {
+        if (
+          audioRef.current &&
+          audioRef.current.duration &&
+          isFinite(audioRef.current.duration) &&
+          audioRef.current.duration > 0
+        ) {
+          setAudioDuration(audioRef.current.duration);
+        } else if (attempts < 25) {
+          setTimeout(() => tryGetDuration(attempts + 1), 30);
+        }
+      };
+
+      tryGetDuration();
+      setTimeout(tryGetDuration, 100);
+    }
+  }, [uploadedFile?.preview, uploadedFile?.type]);
 
   const handleSend = useCallback(() => {
     if (!message.trim() && !uploadedFile) return;
@@ -87,7 +119,33 @@ export function ChatInput({
     const audioFile =
       uploadedFile?.type === "audio" ? uploadedFile.file : undefined;
 
-    onSendMessage(message, imageFile, audioFile);
+    // If we already saved the file locally, pass the stored URL along
+    const imageUrl =
+      uploadedFile?.type === "image" && uploadedFile?.preview
+        ? uploadedFile.preview
+        : undefined;
+    const audioUrl =
+      uploadedFile?.type === "audio" && uploadedFile?.preview
+        ? uploadedFile.preview
+        : undefined;
+    const imageFilename =
+      uploadedFile?.type === "image" && uploadedFile?.storedFile?.filename
+        ? uploadedFile.storedFile.filename
+        : undefined;
+    const audioFilename =
+      uploadedFile?.type === "audio" && uploadedFile?.storedFile?.filename
+        ? uploadedFile.storedFile.filename
+        : undefined;
+
+    onSendMessage(
+      message,
+      imageFile,
+      audioFile,
+      imageUrl,
+      audioUrl,
+      imageFilename,
+      audioFilename
+    );
     setMessage("");
     setUploadedFile(null);
   }, [message, uploadedFile, onSendMessage]);
@@ -99,25 +157,50 @@ export function ChatInput({
     }
   };
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     const fileType = file.type.startsWith("image/") ? "image" : "audio";
 
-    if (fileType === "image") {
+    try {
+      // Save file locally
+      const storedFile = await fileStorageService.saveFile(file, fileType);
+      
+      // Create preview URL from stored file
+      const preview = fileStorageService.getFileUrl(storedFile.filename) + `?type=${fileType}&storageDir=${fileStorageService.getStorageDirectory()}`;
+      
+      setUploadedFile({ 
+        file, 
+        preview, 
+        type: fileType,
+        storedFile 
+      });
+    } catch (error) {
+      console.error("Error saving file:", error);
+      // Fallback to blob URL if storage fails
       const preview = URL.createObjectURL(file);
-      setUploadedFile({ file, preview, type: "image" });
-    } else {
-      const audioUrl = URL.createObjectURL(file);
-      setUploadedFile({ file, preview: audioUrl, type: "audio" });
+      setUploadedFile({ file, preview, type: fileType });
     }
   };
 
-  const removeFile = () => {
+  const removeFile = async () => {
     if (uploadedFile?.preview) {
-      URL.revokeObjectURL(uploadedFile.preview);
+      // Only revoke blob URLs, not stored file URLs
+      if (uploadedFile.preview.startsWith('blob:')) {
+        URL.revokeObjectURL(uploadedFile.preview);
+      }
+      
+      // Delete stored file if it exists
+      if (uploadedFile.storedFile) {
+        try {
+          await fileStorageService.deleteFile(uploadedFile.storedFile.filename);
+        } catch (error) {
+          console.error("Error deleting stored file:", error);
+        }
+      }
     }
+    
     if (audioRef.current) {
       audioRef.current.pause();
       audioRef.current.src = "";
@@ -153,8 +236,8 @@ export function ChatInput({
           audioRef.current.duration > 0
         ) {
           setAudioDuration(audioRef.current.duration);
-        } else if (attempts < 10) {
-          setTimeout(() => tryGetDuration(attempts + 1), 100);
+        } else if (attempts < 15) {
+          setTimeout(() => tryGetDuration(attempts + 1), 50);
         }
       };
 
@@ -168,7 +251,7 @@ export function ChatInput({
       if (duration && isFinite(duration) && duration > 0) {
         setAudioDuration(duration);
       } else {
-        setTimeout(() => {
+        const tryGetDuration = (attempts = 0) => {
           if (
             audioRef.current &&
             audioRef.current.duration &&
@@ -176,8 +259,11 @@ export function ChatInput({
             audioRef.current.duration > 0
           ) {
             setAudioDuration(audioRef.current.duration);
+          } else if (attempts < 10) {
+            setTimeout(() => tryGetDuration(attempts + 1), 50);
           }
-        }, 100);
+        };
+        tryGetDuration();
       }
     }
   };
@@ -206,16 +292,34 @@ export function ChatInput({
         }
       };
 
-      mediaRecorder.onstop = () => {
+            mediaRecorder.onstop = async () => {
         const audioBlob = new Blob(audioChunksRef.current, {
           type: "audio/wav",
         });
         const audioFile = new File([audioBlob], "recording.wav", {
           type: "audio/wav",
         });
-        const audioUrl = URL.createObjectURL(audioBlob);
-        setUploadedFile({ file: audioFile, preview: audioUrl, type: "audio" });
-
+        
+        try {
+          // Save recorded audio locally
+          const storedFile = await fileStorageService.saveFile(audioFile, "audio");
+          
+          // Create preview URL from stored file
+          const audioUrl = fileStorageService.getFileUrl(storedFile.filename) + `?type=audio&storageDir=${fileStorageService.getStorageDirectory()}`;
+          
+          setUploadedFile({ 
+            file: audioFile, 
+            preview: audioUrl, 
+            type: "audio",
+            storedFile 
+          });
+        } catch (error) {
+          console.error("Error saving recorded audio:", error);
+          // Fallback to blob URL if storage fails
+          const audioUrl = URL.createObjectURL(audioBlob);
+          setUploadedFile({ file: audioFile, preview: audioUrl, type: "audio" });
+        }
+        
         setAudioDuration(recordingTime);
 
         stream.getTracks().forEach((track) => track.stop());

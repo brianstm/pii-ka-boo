@@ -6,6 +6,8 @@ export interface ChatMessage {
   type: 'text' | 'image' | 'audio';
   imageUrl?: string;
   audioUrl?: string;
+  imageFilename?: string;
+  audioFilename?: string;
   provider?: 'robot' | 'gemini';
 }
 
@@ -26,4 +28,11 @@ export interface FileUpload {
   file: File;
   preview?: string;
   type: 'image' | 'audio';
+  storedFile?: {
+    filename: string;
+    filepath: string;
+    type: 'audio' | 'image';
+    originalName: string;
+    timestamp: Date;
+  };
 }

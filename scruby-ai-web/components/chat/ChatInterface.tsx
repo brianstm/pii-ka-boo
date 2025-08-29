@@ -22,8 +22,10 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
-import { Moon, Sun, Settings } from "lucide-react";
+import { Moon, Sun, Settings, FolderOpen } from "lucide-react";
 import { replacePlaceholdersFromOriginal } from "@/services/piiReplacementService";
+import { fileStorageService } from "@/services/fileStorageService";
+import { StorageSettings } from "./StorageSettings";
 
 export function ChatInterface() {
   const [messages, setMessages] = useState<ChatMessageType[]>([]);
@@ -32,6 +34,7 @@ export function ChatInterface() {
     darkMode: false,
   });
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [showStorageSettings, setShowStorageSettings] = useState(false);
 
   const [isLoading, setIsLoading] = useState(false);
   const [chatLocked, setChatLocked] = useState(false);
@@ -71,7 +74,11 @@ export function ChatInterface() {
   const handleSendMessage = async (
     message: string,
     image?: File,
-    audio?: File
+    audio?: File,
+    imageUrlFromInput?: string,
+    audioUrlFromInput?: string,
+    imageFilenameFromInput?: string,
+    audioFilenameFromInput?: string
   ) => {
     if (!message.trim() && !image && !audio) return;
 
@@ -85,14 +92,44 @@ export function ChatInterface() {
       }
     }
 
+    // Get stored file URLs for images and audio (avoid double save if provided)
+    let imageUrl: string | undefined = imageUrlFromInput;
+    let audioUrl: string | undefined = audioUrlFromInput;
+
+    if (!imageUrl && image) {
+      try {
+        const storedFile = await fileStorageService.saveFile(image, "image");
+        imageUrl =
+          fileStorageService.getFileUrl(storedFile.filename) +
+          `?type=image&storageDir=${fileStorageService.getStorageDirectory()}`;
+      } catch (error) {
+        console.error("Error saving image:", error);
+        imageUrl = URL.createObjectURL(image);
+      }
+    }
+
+    if (!audioUrl && audio) {
+      try {
+        const storedFile = await fileStorageService.saveFile(audio, "audio");
+        audioUrl =
+          fileStorageService.getFileUrl(storedFile.filename) +
+          `?type=audio&storageDir=${fileStorageService.getStorageDirectory()}`;
+      } catch (error) {
+        console.error("Error saving audio:", error);
+        audioUrl = URL.createObjectURL(audio);
+      }
+    }
+
     const userMessage: ChatMessageType = {
       id: uuidv4(),
       role: "user",
       content: finalMessage,
       timestamp: new Date(),
       type: image ? "image" : audio ? "audio" : "text",
-      imageUrl: image ? URL.createObjectURL(image) : undefined,
-      audioUrl: audio ? URL.createObjectURL(audio) : undefined,
+      imageUrl,
+      audioUrl,
+      imageFilename: imageFilenameFromInput,
+      audioFilename: audioFilenameFromInput,
     };
 
     setMessages((prev) => [...prev, userMessage]);
@@ -227,7 +264,41 @@ export function ChatInterface() {
                         onCheckedChange={handleDarkModeToggle}
                       />
                     </div>
+
+                    <Separator />
+
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-0.5">
+                        <div className="flex items-center gap-2">
+                          <FolderOpen className="w-4 h-4" />
+                          <span className="font-medium">File Storage</span>
+                        </div>
+                        <p className="text-sm text-muted-foreground">
+                          Configure local file storage settings
+                        </p>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setShowStorageSettings(true)}
+                      >
+                        Configure
+                      </Button>
+                    </div>
                   </div>
+                </DialogContent>
+              </Dialog>
+
+              {/* Storage Settings Dialog */}
+              <Dialog open={showStorageSettings} onOpenChange={setShowStorageSettings}>
+                <DialogContent className="max-w-md">
+                  <DialogHeader>
+                    <DialogTitle>Storage Settings</DialogTitle>
+                    <DialogDescription>
+                      Configure local file storage preferences
+                    </DialogDescription>
+                  </DialogHeader>
+                  <StorageSettings onClose={() => setShowStorageSettings(false)} />
                 </DialogContent>
               </Dialog>
             </div>

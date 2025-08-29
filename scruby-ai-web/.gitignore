@@ -46,3 +46,4 @@ venv/
 env/
 ENV/
 
+/uploads
