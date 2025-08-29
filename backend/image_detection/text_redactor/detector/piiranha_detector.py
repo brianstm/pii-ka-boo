@@ -3,6 +3,8 @@ from typing import List, Iterable
 from transformers import pipeline
 from backend.image_detection.core.types import BBox, PIIType
 
+MODEL_DIR = os.path.join(os.path.dirname(__file__), "model")
+
 class PiiranhaDetector:
 
     def __init__(
@@ -11,10 +13,10 @@ class PiiranhaDetector:
         target_entities: Iterable[str] = None,
         min_confidence_score: float = 0.50
     ):
-        print(model_name)
+        print(os.path.join(MODEL_DIR, model_name))
         self.pipe = pipeline(
             task="token-classification",
-            model=model_name,
+            model=os.path.join(MODEL_DIR, model_name),
             tokenizer=model_name
         )
         self.target = set(e.upper() for e in (target_entities or []))
