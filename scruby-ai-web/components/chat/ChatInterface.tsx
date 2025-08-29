@@ -207,10 +207,7 @@ export function ChatInterface() {
       <div className="flex-1 flex flex-col relative">
         <div className="border-b p-4 flex items-center justify-between transition-all duration-300">
           <div className="flex justify-between gap-3 w-full">
-            <div
-              className="flex items-center gap-2 cursor-pointer"
-              onClick={() => window.location.reload()}
-            >
+            <div className="flex items-center gap-2">
               <div className="relative w-8 h-8">
                 <Image
                   src="/logo.png"
@@ -290,7 +287,10 @@ export function ChatInterface() {
               </Dialog>
 
               {/* Storage Settings Dialog */}
-              <Dialog open={showStorageSettings} onOpenChange={setShowStorageSettings}>
+              <Dialog
+                open={showStorageSettings}
+                onOpenChange={setShowStorageSettings}
+              >
                 <DialogContent className="max-w-md">
                   <DialogHeader>
                     <DialogTitle>Storage Settings</DialogTitle>
@@ -298,7 +298,9 @@ export function ChatInterface() {
                       Configure local file storage preferences
                     </DialogDescription>
                   </DialogHeader>
-                  <StorageSettings onClose={() => setShowStorageSettings(false)} />
+                  <StorageSettings
+                    onClose={() => setShowStorageSettings(false)}
+                  />
                 </DialogContent>
               </Dialog>
             </div>
