@@ -2,9 +2,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import List, Dict, Any, Tuple
 import os
+import json
 import cv2
 import numpy as np
-import yaml
 
 from backend.image_detection.core.types import BBox, PIIType, Mask
 from backend.image_detection.text_redactor.ocr.easyocr_engine import EasyOCREngine
@@ -25,25 +25,28 @@ class PipelineConfig:
     min_ocr_confidence: float = 0.3
     blur_method: str = "gaussian"   # gaussian | mosaic
     blur_strength: int = 31
-    save_visual_debug: bool = False
-
+    
     @classmethod
-    def from_yaml(cls, path: str) -> "PipelineConfig":
+    def from_json(cls, path: str) -> "PipelineConfig":
         with open(path, "r") as f:
-            cfg = yaml.safe_load(f)
+            cfg = json.load(f)
+            pii_params = cfg["pii"]
         return cls(
             ocr_engine=cfg.get("ocr", {}).get("engine", "easyocr"),
             ocr_langs=cfg.get("ocr", {}).get("langs", ["en"]),
             ocr_detail=int(cfg.get("ocr", {}).get("detail", 1)),
-            pii_engine=cfg.get("pii", {}).get("engine", "piiranha"),
-            language=cfg.get("pii", {}).get("language", "en"),
-            model_name=cfg.get("pii", {}).get("model_name", "iiiorg/piiranha-v1-detect-personal-information"),
-            target_entities=cfg.get("pii", {}).get("target_entities", []),
-            min_pii_score=float(cfg.get("pii", {}).get("min_score", 0.35)),
+
+            presidio_language = pii_params.get("language", "en"),
+            presidio_target_entities = pii_params.get("target_entities", []),
+            presidio_min_score = float(pii_params.get("min_score", 0.5)),
+
+            piiranha_model_name = pii_params.get("model_name", "iiiorg/piiranha-v1-detect-personal-information"),
+            piiranha_target_entities = pii_params.get("target_entities", []),
+            piiranha_min_score = float(pii_params.get("min_score", 0.5)),
+
             min_ocr_confidence=float(cfg.get("min_ocr_confidence", 0.3)),
             blur_method=cfg.get("blur", {}).get("method", "gaussian"),
             blur_strength=int(cfg.get("blur", {}).get("strength", 31)),
-            save_visual_debug=bool(cfg.get("save_visual_debug", False)),
         )
 
 class PIIBlurPipeline:

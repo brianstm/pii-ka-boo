@@ -26,7 +26,7 @@ def main():
     out_dir = Path(args.output)
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    cfg = PipelineConfig.from_yaml(args.config)
+    cfg = PipelineConfig.from_json(args.config)
     pipe = PIIBlurPipeline(cfg)
 
     for img_path in iter_images(in_path):
