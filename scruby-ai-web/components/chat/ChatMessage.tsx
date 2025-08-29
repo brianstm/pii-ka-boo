@@ -3,13 +3,13 @@
 import { ChatMessage as ChatMessageType } from "@/types";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Card } from "@/components/ui/card";
-import { User, Bot, Sparkles } from "lucide-react";
+import { User, Bot, Sparkles, Play, Pause, Mic } from "lucide-react";
 import Image from "next/image";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Button } from "@/components/ui/button";
 import { Copy, Check } from "lucide-react";
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 
 interface ChatMessageProps {
   message: ChatMessageType;
@@ -18,6 +18,11 @@ interface ChatMessageProps {
 export function ChatMessage({ message }: ChatMessageProps) {
   const isUser = message.role === "user";
   const [copied, setCopied] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [audioDuration, setAudioDuration] = useState(0);
+  const [currentTime, setCurrentTime] = useState(0);
+
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const handleCopy = async () => {
     try {
@@ -54,8 +59,8 @@ export function ChatMessage({ message }: ChatMessageProps) {
           audioRef.current.duration > 0
         ) {
           setAudioDuration(audioRef.current.duration);
-        } else if (attempts < 10) {
-          setTimeout(() => tryGetDuration(attempts + 1), 100);
+        } else if (attempts < 15) {
+          setTimeout(() => tryGetDuration(attempts + 1), 50);
         }
       };
 
@@ -69,7 +74,7 @@ export function ChatMessage({ message }: ChatMessageProps) {
       if (duration && isFinite(duration) && duration > 0) {
         setAudioDuration(duration);
       } else {
-        setTimeout(() => {
+        const tryGetDuration = (attempts = 0) => {
           if (
             audioRef.current &&
             audioRef.current.duration &&
@@ -77,8 +82,11 @@ export function ChatMessage({ message }: ChatMessageProps) {
             audioRef.current.duration > 0
           ) {
             setAudioDuration(audioRef.current.duration);
+          } else if (attempts < 10) {
+            setTimeout(() => tryGetDuration(attempts + 1), 50);
           }
-        }, 100);
+        };
+        tryGetDuration();
       }
     }
   };
@@ -109,13 +117,32 @@ export function ChatMessage({ message }: ChatMessageProps) {
             audioRef.current.duration > 0
           ) {
             setAudioDuration(audioRef.current.duration);
-          } else if (attempts < 10) {
-            setTimeout(() => tryGetDuration(attempts + 1), 100);
+          } else if (attempts < 20) {
+            setTimeout(() => tryGetDuration(attempts + 1), 50);
           }
         };
-
         tryGetDuration();
       }
+    }
+  }, [message.audioUrl]);
+
+  useEffect(() => {
+    if (message.audioUrl && audioRef.current) {
+      const tryGetDuration = (attempts = 0) => {
+        if (
+          audioRef.current &&
+          audioRef.current.duration &&
+          isFinite(audioRef.current.duration) &&
+          audioRef.current.duration > 0
+        ) {
+          setAudioDuration(audioRef.current.duration);
+        } else if (attempts < 25) {
+          setTimeout(() => tryGetDuration(attempts + 1), 30);
+        }
+      };
+
+      tryGetDuration();
+      setTimeout(tryGetDuration, 100);
     }
   }, [message.audioUrl]);
 
@@ -169,7 +196,7 @@ export function ChatMessage({ message }: ChatMessageProps) {
                 </div>
               )}
 
-              {message.audioUrl && (
+              {(message.audioUrl || message.audioFilename) && (
                 <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
                   <div className="w-12 h-12 bg-muted rounded-md flex items-center justify-center">
                     <Mic className="w-6 h-6 text-muted-foreground" />
@@ -216,10 +243,13 @@ export function ChatMessage({ message }: ChatMessageProps) {
               )}
 
               {/* Hidden audio element for playback */}
-              {message.audioUrl && (
+              {(message.audioUrl || message.audioFilename) && (
                 <audio
                   ref={audioRef}
-                  src={message.audioUrl}
+                  src={
+                    message.audioUrl ||
+                    `/api/file-storage/get/${message.audioFilename}?type=audio`
+                  }
                   preload="metadata"
                   onLoadedMetadata={handleAudioLoaded}
                   onCanPlay={handleAudioLoaded}
@@ -228,7 +258,6 @@ export function ChatMessage({ message }: ChatMessageProps) {
                   onPlay={() => setIsPlaying(true)}
                   onPause={() => setIsPlaying(false)}
                   onCanPlayThrough={() => {
-                    // Try to get duration when audio can play through
                     forceLoadMetadata();
                   }}
                   className="hidden"

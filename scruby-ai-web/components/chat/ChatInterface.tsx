@@ -207,7 +207,10 @@ export function ChatInterface() {
       <div className="flex-1 flex flex-col relative">
         <div className="border-b p-4 flex items-center justify-between transition-all duration-300">
           <div className="flex justify-between gap-3 w-full">
-            <div className="flex items-center gap-2">
+            <div
+              className="flex items-center gap-2 cursor-pointer"
+              onClick={() => window.location.reload()}
+            >
               <div className="relative w-8 h-8">
                 <Image
                   src="/logo.png"
