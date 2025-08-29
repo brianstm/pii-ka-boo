@@ -1,7 +1,7 @@
 from faster_whisper import WhisperModel
 #pip install faster-whisper ffmpeg-python
 
-AUDIO_FILE = "sample_input_2.mp3"
+AUDIO_FILE = "sample_input_3.m4a"
 
 model = WhisperModel(
     "small",                 # was "medium"
