@@ -298,7 +298,11 @@ export function ChatInput({
         const audioBlob = new Blob(audioChunksRef.current, {
           type: "audio/wav",
         });
-        const audioFile = new File([audioBlob], "recording.wav", {
+        
+        // Generate a more descriptive filename for recorded audio
+        const now = new Date();
+        const timestamp = now.toISOString().replace(/[:.]/g, "-").replace("T", "_").replace("Z", "");
+        const audioFile = new File([audioBlob], `voice_recording_${timestamp}.wav`, {
           type: "audio/wav",
         });
 

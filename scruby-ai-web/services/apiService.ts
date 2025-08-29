@@ -23,6 +23,7 @@ export interface SendMessageRequest {
   image?: File;
   audio?: File;
   piiEnabled: boolean;
+  piiExclusions?: string[];
 }
 
 export interface SendMessageResponse {
@@ -98,10 +99,15 @@ class ApiService {
         type: "text",
       };
     } else {
-      const res = await fetch("/api/text", {
+      const exclude = (request.piiExclusions || []).join(",");
+      const qs = exclude ? `?exclude=${encodeURIComponent(exclude)}` : "";
+      const res = await fetch(`/api/text${qs}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: request.message }),
+        body: JSON.stringify({
+          message: request.message,
+          piiEnabled: request.piiEnabled,
+        }),
       });
 
       if (!res.ok) {

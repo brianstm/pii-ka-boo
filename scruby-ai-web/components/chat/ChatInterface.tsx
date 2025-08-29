@@ -26,6 +26,7 @@ import { Moon, Sun, Settings, FolderOpen } from "lucide-react";
 import { replacePlaceholdersFromOriginal } from "@/services/piiReplacementService";
 import { fileStorageService } from "@/services/fileStorageService";
 import { StorageSettings } from "./StorageSettings";
+import PiiFilters from "./PiiFilters";
 
 export function ChatInterface() {
   const [messages, setMessages] = useState<ChatMessageType[]>([]);
@@ -35,6 +36,11 @@ export function ChatInterface() {
   });
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [showStorageSettings, setShowStorageSettings] = useState(false);
+  const [piiFiltersOpen, setPiiFiltersOpen] = useState(false);
+  const [piiExclusions, setPiiExclusions] = useLocalStorage<string[]>(
+    "piiExclusions",
+    []
+  );
 
   const [isLoading, setIsLoading] = useState(false);
   const [chatLocked, setChatLocked] = useState(false);
@@ -92,7 +98,6 @@ export function ChatInterface() {
       }
     }
 
-    // Get stored file URLs for images and audio (avoid double save if provided)
     let imageUrl: string | undefined = imageUrlFromInput;
     let audioUrl: string | undefined = audioUrlFromInput;
 
@@ -144,6 +149,7 @@ export function ChatInterface() {
         image,
         audio,
         piiEnabled: settings.piiEnabled,
+        piiExclusions,
       });
 
       const assistantMessage: ChatMessageType = {
@@ -158,7 +164,6 @@ export function ChatInterface() {
       };
       setMessages((prev) => [...prev, assistantMessage]);
 
-      // Gemini response uses robot response as input
       const gemini = await apiService.callGemini(response.message);
       const geminiMessage: ChatMessageType = {
         id: uuidv4(),
@@ -170,7 +175,6 @@ export function ChatInterface() {
       };
       setMessages((prev) => [...prev, geminiMessage]);
 
-      // Replace placeholders back using original message
       const restored = replacePlaceholdersFromOriginal(
         finalMessage,
         gemini.message
@@ -203,7 +207,7 @@ export function ChatInterface() {
   };
 
   return (
-    <div className="flex h-screen bg-background">
+    <div className="flex h-screen bg-background overflow-x-hidden">
       <div className="flex-1 flex flex-col relative">
         <div className="border-b p-4 flex items-center justify-between transition-all duration-300">
           <div className="flex justify-between gap-3 w-full">
@@ -222,7 +226,28 @@ export function ChatInterface() {
               <h1 className="text-md font-bold">ScrubbyAI</h1>
             </div>
 
-            <div>
+            <div className="flex items-center gap-2">
+              <Dialog open={piiFiltersOpen} onOpenChange={setPiiFiltersOpen}>
+                <DialogTrigger asChild>
+                  <Button variant="outline" size="sm">
+                    PII Filters
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-lg">
+                  <DialogHeader>
+                    <DialogTitle>PII Filters</DialogTitle>
+                    <DialogDescription>
+                      Uncheck any PII categories to exclude from scrubbing.
+                      Saved locally.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <PiiFilters
+                    exclusions={piiExclusions}
+                    onChange={setPiiExclusions}
+                  />
+                </DialogContent>
+              </Dialog>
+
               <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
                 <DialogTrigger asChild>
                   <Button
