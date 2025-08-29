@@ -6,10 +6,10 @@ import cv2
 import numpy as np
 import yaml
 
-from image_detection.core.types import BBox, PIIType, Mask
-from image_detection.text_redactor.ocr.easyocr_engine import EasyOCREngine
-from image_detection.text_redactor.detector.presidio_detector import PresidioDetector
-from image_detection.text_redactor.detector.piiranha_detector import PiiranhaDetector
+from backend.image_detection.core.types import BBox, PIIType, Mask
+from backend.image_detection.text_redactor.ocr.easyocr_engine import EasyOCREngine
+from backend.image_detection.text_redactor.detector.presidio_detector import PresidioDetector
+from backend.image_detection.text_redactor.detector.piiranha_detector import PiiranhaDetector
 from .apply_blur import apply_gaussian_blur, apply_mosaic_blur
 
 @dataclass

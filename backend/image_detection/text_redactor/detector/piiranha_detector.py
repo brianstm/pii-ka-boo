@@ -1,7 +1,7 @@
 import os
 from typing import List, Iterable
 from transformers import pipeline
-from image_detection.core.types import BBox, PIIType
+from backend.image_detection.core.types import BBox, PIIType
 
 class PiiranhaDetector:
 

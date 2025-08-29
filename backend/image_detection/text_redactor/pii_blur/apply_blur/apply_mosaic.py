@@ -1,6 +1,6 @@
 import cv2
 import numpy as np
-from image_detection.core.types import Mask
+from backend.image_detection.core.types import Mask
 
 def apply_mosaic_blur(img: np.ndarray, mask: Mask, block_size: int = 25) -> None:
     ys, xs = mask.as_slice()
