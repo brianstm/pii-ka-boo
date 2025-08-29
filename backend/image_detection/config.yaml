@@ -1,0 +1,24 @@
+# Default configuration for PII blurring
+ocr:
+  engine: easyocr
+  langs: ["en"]
+  detail: 1
+
+pii:
+  engine: presidio
+  language: "en"
+  target_entities:
+    - PERSON
+    - EMAIL_ADDRESS
+    - PHONE_NUMBER
+    - CREDIT_CARD
+    - IP_ADDRESS
+    - LOCATION
+  min_score: 0.35 # tune this
+
+blur:
+  method: gaussian # another option can be mosaic
+  strength: 73 # idk what this is, odd int for gaussian kernel or block size for mosaic
+
+min_ocr_confidence: 0.7
+save_visual_debug: false
