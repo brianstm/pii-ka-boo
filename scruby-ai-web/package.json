@@ -7,7 +7,7 @@
     "build": "next build --turbopack",
     "start": "next start",
     "lint": "eslint",
-    "setup:py": "node setup-python.js"
+    "setup:py": "node ./setup/setup-text.js && node ./setup/setup-audio.js"
   },
   "dependencies": {
     "@radix-ui/react-alert-dialog": "^1.1.15",

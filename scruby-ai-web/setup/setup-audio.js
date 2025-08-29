@@ -1,8 +1,9 @@
-// setup-python.js
+// setup-audio-python.js
 const { spawnSync } = require("child_process");
 const path = require("path");
 
-const venvPath = path.join(__dirname, "app", "api", "text", ".venv");
+// Path to new audio venv
+const venvPath = path.join(__dirname, "..", "app", "api", "audio", ".venv");
 
 // Pick correct python command
 const pythonCmd = process.platform === "win32" ? "python" : "python3";
@@ -21,32 +22,10 @@ const pipPath =
 console.log("⬆️  Upgrading pip...");
 spawnSync(pipPath, ["install", "--upgrade", "pip"], { stdio: "inherit" });
 
-// Step 4: Install required packages
-const packages = [
-  "torch==2.3.1",
-  "transformers>=4.38",
-  "tokenizers>=0.15.2",
-  "huggingface-hub>=0.23",
-  "safetensors>=0.4.2",
-];
-
+// Step 4: Install faster-whisper and ffmpeg-python
+const packages = ["faster-whisper", "ffmpeg-python"];
 console.log("📥 Installing packages:", packages.join(", "));
 
-spawnSync(
-  pipPath,
-  [
-    "install",
-    "torch==2.3.1",
-    "--index-url",
-    "https://download.pytorch.org/whl/cpu",
-    "--extra-index-url",
-    "https://pypi.org/simple",
-    "transformers>=4.38",
-    "tokenizers>=0.15.2",
-    "huggingface-hub>=0.23",
-    "safetensors>=0.4.2",
-  ],
-  { stdio: "inherit" }
-);
+spawnSync(pipPath, ["install", ...packages], { stdio: "inherit" });
 
-console.log("✅ Python environment setup complete!");
+console.log("✅ Audio Python environment setup complete!");
