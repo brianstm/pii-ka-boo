@@ -3,13 +3,13 @@
 import { ChatMessage as ChatMessageType } from "@/types";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Card } from "@/components/ui/card";
-import { User, Bot, Sparkles } from "lucide-react";
+import { User, Bot, Sparkles, Play, Pause, Mic } from "lucide-react";
 import Image from "next/image";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Button } from "@/components/ui/button";
 import { Copy, Check } from "lucide-react";
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 
 interface ChatMessageProps {
   message: ChatMessageType;
@@ -18,6 +18,11 @@ interface ChatMessageProps {
 export function ChatMessage({ message }: ChatMessageProps) {
   const isUser = message.role === "user";
   const [copied, setCopied] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [audioDuration, setAudioDuration] = useState(0);
+  const [currentTime, setCurrentTime] = useState(0);
+
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const handleCopy = async () => {
     try {
@@ -28,6 +33,96 @@ export function ChatMessage({ message }: ChatMessageProps) {
       // noop
     }
   };
+
+  const toggleAudioPlayback = async () => {
+    if (!audioRef.current) return;
+
+    if (isPlaying) {
+      audioRef.current.pause();
+    } else {
+      try {
+        await audioRef.current.play();
+      } catch (error) {
+        console.error("Error playing audio:", error);
+        setIsPlaying(false);
+      }
+    }
+  };
+
+  const forceLoadMetadata = () => {
+    if (audioRef.current && message.audioUrl && !isPlaying) {
+      const tryGetDuration = (attempts = 0) => {
+        if (
+          audioRef.current &&
+          audioRef.current.duration &&
+          isFinite(audioRef.current.duration) &&
+          audioRef.current.duration > 0
+        ) {
+          setAudioDuration(audioRef.current.duration);
+        } else if (attempts < 10) {
+          setTimeout(() => tryGetDuration(attempts + 1), 100);
+        }
+      };
+
+      tryGetDuration();
+    }
+  };
+
+  const handleAudioLoaded = () => {
+    if (audioRef.current) {
+      const duration = audioRef.current.duration;
+      if (duration && isFinite(duration) && duration > 0) {
+        setAudioDuration(duration);
+      } else {
+        setTimeout(() => {
+          if (
+            audioRef.current &&
+            audioRef.current.duration &&
+            isFinite(audioRef.current.duration) &&
+            audioRef.current.duration > 0
+          ) {
+            setAudioDuration(audioRef.current.duration);
+          }
+        }, 100);
+      }
+    }
+  };
+
+  const handleAudioTimeUpdate = () => {
+    if (audioRef.current) {
+      setCurrentTime(audioRef.current.currentTime);
+    }
+  };
+
+  const handleAudioEnded = () => {
+    setIsPlaying(false);
+    setCurrentTime(0);
+  };
+
+  useEffect(() => {
+    if (message.audioUrl) {
+      setIsPlaying(false);
+      setCurrentTime(0);
+      setAudioDuration(0);
+
+      if (audioRef.current) {
+        const tryGetDuration = (attempts = 0) => {
+          if (
+            audioRef.current &&
+            audioRef.current.duration &&
+            isFinite(audioRef.current.duration) &&
+            audioRef.current.duration > 0
+          ) {
+            setAudioDuration(audioRef.current.duration);
+          } else if (attempts < 10) {
+            setTimeout(() => tryGetDuration(attempts + 1), 100);
+          }
+        };
+
+        tryGetDuration();
+      }
+    }
+  }, [message.audioUrl]);
 
   return (
     <div
@@ -77,13 +172,69 @@ export function ChatMessage({ message }: ChatMessageProps) {
               )}
 
               {message.audioUrl && (
+                <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
+                  <div className="w-12 h-12 bg-muted rounded-md flex items-center justify-center">
+                    <Mic className="w-6 h-6 text-muted-foreground" />
+                  </div>
+
+                  <div className="flex-1">
+                    <p className="text-sm font-medium">Audio Message</p>
+                    <div className="flex items-center gap-2 mt-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={toggleAudioPlayback}
+                        className="h-6 w-6 p-0 hover:bg-accent"
+                      >
+                        {isPlaying ? (
+                          <Pause className="w-3 h-3" />
+                        ) : (
+                          <Play className="w-3 h-3" />
+                        )}
+                      </Button>
+                      <div className="flex-1 bg-muted rounded-full h-1">
+                        <div
+                          className="bg-primary h-1 rounded-full transition-all duration-100"
+                          style={{
+                            width:
+                              audioDuration > 0 && isFinite(audioDuration)
+                                ? `${(currentTime / audioDuration) * 100}%`
+                                : "0%",
+                          }}
+                        />
+                      </div>
+                      <span className="text-xs text-muted-foreground min-w-[40px]">
+                        {audioDuration > 0 && isFinite(audioDuration)
+                          ? `${Math.floor(currentTime)}s / ${Math.floor(
+                              audioDuration
+                            )}s`
+                          : audioDuration > 0
+                          ? `${Math.floor(currentTime)}s`
+                          : ""}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Hidden audio element for playback */}
+              {message.audioUrl && (
                 <audio
-                  controls
-                  className="w-full transition-all duration-200 hover:shadow-sm"
-                >
-                  <source src={message.audioUrl} type="audio/mpeg" />
-                  Your browser does not support the audio element.
-                </audio>
+                  ref={audioRef}
+                  src={message.audioUrl}
+                  preload="metadata"
+                  onLoadedMetadata={handleAudioLoaded}
+                  onCanPlay={handleAudioLoaded}
+                  onTimeUpdate={handleAudioTimeUpdate}
+                  onEnded={handleAudioEnded}
+                  onPlay={() => setIsPlaying(true)}
+                  onPause={() => setIsPlaying(false)}
+                  onCanPlayThrough={() => {
+                    // Try to get duration when audio can play through
+                    forceLoadMetadata();
+                  }}
+                  className="hidden"
+                />
               )}
 
               <div className="prose prose-sm max-w-none dark:prose-invert">
