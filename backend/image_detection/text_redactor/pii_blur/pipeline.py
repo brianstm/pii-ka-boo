@@ -6,9 +6,10 @@ import cv2
 import numpy as np
 import yaml
 
-from core.types import BBox, PIIType, Mask
-from ocr.easyocr_engine import EasyOCREngine
-from detector.presidio_detector import PresidioDetector
+from image_detection.core.types import BBox, PIIType, Mask
+from image_detection.text_redactor.ocr.easyocr_engine import EasyOCREngine
+from image_detection.text_redactor.detector.presidio_detector import PresidioDetector
+from image_detection.text_redactor.detector.piiranha_detector import PiiranhaDetector
 from .apply_blur import apply_gaussian_blur, apply_mosaic_blur
 
 @dataclass
@@ -16,8 +17,9 @@ class PipelineConfig:
     ocr_engine: str = "easyocr"
     ocr_langs: List[str] = None
     ocr_detail: int = 1
-    pii_engine: str = "presidio"
+    pii_engine: str = "piiranha"
     language: str = "en"
+    model_name: str = "iiiorg/piiranha-v1-detect-personal-information"
     target_entities: List[str] = None
     min_pii_score: float = 0.35
     min_ocr_confidence: float = 0.3
@@ -33,8 +35,9 @@ class PipelineConfig:
             ocr_engine=cfg.get("ocr", {}).get("engine", "easyocr"),
             ocr_langs=cfg.get("ocr", {}).get("langs", ["en"]),
             ocr_detail=int(cfg.get("ocr", {}).get("detail", 1)),
-            pii_engine=cfg.get("pii", {}).get("engine", "presidio"),
+            pii_engine=cfg.get("pii", {}).get("engine", "piiranha"),
             language=cfg.get("pii", {}).get("language", "en"),
+            model_name=cfg.get("pii", {}).get("model_name", "iiiorg/piiranha-v1-detect-personal-information"),
             target_entities=cfg.get("pii", {}).get("target_entities", []),
             min_pii_score=float(cfg.get("pii", {}).get("min_score", 0.35)),
             min_ocr_confidence=float(cfg.get("min_ocr_confidence", 0.3)),
@@ -47,7 +50,11 @@ class PIIBlurPipeline:
     def __init__(self, config: PipelineConfig):
         self.cfg = config
         self.ocr = EasyOCREngine(langs=self.cfg.ocr_langs, detail=self.cfg.ocr_detail)
-        self.detector = PresidioDetector(language=self.cfg.language, target_entities=self.cfg.target_entities, min_confidence_score=self.cfg.min_pii_score)
+
+        if self.cfg.pii_engine == "presidio":
+            self.detector = PresidioDetector(language=self.cfg.language, target_entities=self.cfg.target_entities, min_confidence_score=self.cfg.min_pii_score)
+        else:
+            self.detector = PiiranhaDetector(self.cfg.model_name, target_entities=self.cfg.target_entities, min_confidence_score=self.cfg.min_pii_score)
 
     def _mask_from_BBox(self, box: BBox, width: int, height: int) -> Mask:
         mask = Mask.from_polygon(box.bbox)

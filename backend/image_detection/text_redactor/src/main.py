@@ -3,7 +3,7 @@ import os
 import cv2
 from pathlib import Path
 
-from pii_blur.pipeline import PipelineConfig, PIIBlurPipeline
+from image_detection.text_redactor.pii_blur.pipeline import PipelineConfig, PIIBlurPipeline
 
 def iter_images(path: Path):
     if path.is_file():
