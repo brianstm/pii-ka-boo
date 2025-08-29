@@ -13,7 +13,6 @@ class PiiranhaDetector:
         target_entities: Iterable[str] = None,
         min_confidence_score: float = 0.50
     ):
-        print(os.path.join(MODEL_DIR, model_name))
         self.pipe = pipeline(
             task="token-classification",
             model=os.path.join(MODEL_DIR, model_name),
