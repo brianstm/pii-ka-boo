@@ -111,12 +111,14 @@ export function ChatInterface() {
 
     let imageUrl: string | undefined = imageUrlFromInput;
     let audioUrl: string | undefined = audioUrlFromInput;
+    let storedImageFilename: string | undefined;
 
     console.log("Debug - imageUrl:", imageUrl);
 
     if (!imageUrl && image) {
       try {
         const storedFile = await fileStorageService.saveFile(image, "image");
+        storedImageFilename = storedFile.filename;
         imageUrl =
           fileStorageService.getFileUrl(storedFile.filename) +
           `?type=image&storageDir=${fileStorageService.getStorageDirectory()}`;
@@ -162,7 +164,7 @@ export function ChatInterface() {
 
       const response = await apiService.sendMessage({
         message: finalMessage,
-        image: imageUrl ? new File([], imageUrl) : undefined,
+        image: imageUrl ? new File([], storedImageFilename || imageUrl) : undefined,
         audio,
         piiEnabled: settings.piiEnabled,
         piiExclusions,
@@ -181,7 +183,7 @@ export function ChatInterface() {
       };
       setMessages((prev) => [...prev, assistantMessage]);
 
-      const gemini = await apiService.callGemini(response.message);
+      const gemini = await apiService.callGemini(response.message, response.imageName);
       const geminiMessage: ChatMessageType = {
         id: uuidv4(),
         role: "assistant",
@@ -383,7 +385,7 @@ export function ChatInterface() {
                 {messages.length === 0 && (
                   <div className="text-center space-y-2 max-w-md mx-auto pb-3 opacity-80">
                     <h3 className="text-3xl font-semibold">
-                      Let the suffering end...
+                      Your Safe AI Gateway...
                     </h3>
                   </div>
                 )}

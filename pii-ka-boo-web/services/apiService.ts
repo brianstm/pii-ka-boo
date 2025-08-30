@@ -33,6 +33,7 @@ export interface SendMessageResponse {
   type: "text" | "image" | "audio";
   audioUrl?: string;
   imageUrl?: string;
+  imageName?: string;
 }
 
 export interface GeminiResponse {
@@ -78,17 +79,33 @@ class ApiService {
 
   async sendMessage(request: SendMessageRequest): Promise<SendMessageResponse> {
     let response: SendMessageResponse;
+    let extractedImageName: string | undefined;
 
     if (request.image) {
-      const pattern = /get\/([^?]+)/;
-      const match = request.image.name.match(pattern);
+      // Extract image name from the URL or filename
       let imageName = "";
-      if (match && match[1]) {
-        imageName = match[1];
-        console.log("Image Name:", imageName);
+
+      // Try to extract from URL pattern first
+      const urlPattern = /get\/([^?]+)/;
+      const urlMatch = request.image.name.match(urlPattern);
+
+      if (urlMatch && urlMatch[1]) {
+        imageName = urlMatch[1];
+        console.log("Image Name extracted from URL:", imageName);
       } else {
-        console.log("No image name found in the URL.");
+        // Try to extract from filename pattern
+        const filenamePattern = /([^\/\\]+)$/;
+        const filenameMatch = request.image.name.match(filenamePattern);
+
+        if (filenameMatch && filenameMatch[1]) {
+          imageName = filenameMatch[1];
+          console.log("Image Name extracted from filename:", imageName);
+        } else {
+          console.log("No image name found in the URL or filename.");
+        }
       }
+
+      extractedImageName = imageName;
 
       const requestBody = {
         input: "./uploads/image/" + imageName,
@@ -110,6 +127,7 @@ class ApiService {
         message: imageName,
         imageUrl: `/api/serve-image?filename=${imageName}`,
         type: "image",
+        imageName: extractedImageName, // Add imageName to response
       };
     } else {
       let processedMessage = request.message;
@@ -190,11 +208,14 @@ class ApiService {
     return response;
   }
 
-  async callGemini(message: string): Promise<GeminiResponse> {
+  async callGemini(
+    message: string,
+    imageName?: string
+  ): Promise<GeminiResponse> {
     const res = await fetch("/api/gemini", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message }),
+      body: JSON.stringify({ message, imageName }),
     });
     if (!res.ok) {
       throw new Error(`Gemini API request failed: ${res.statusText}`);

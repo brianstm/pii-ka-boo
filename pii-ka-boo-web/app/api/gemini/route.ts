@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
         const filePath = path.join(
           process.cwd(),
           "uploads",
-          "images",
+          "image",
           imageName
         );
 
