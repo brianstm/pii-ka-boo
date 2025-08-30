@@ -6,11 +6,11 @@ import json
 import cv2
 import numpy as np
 
-from backend.image_detection.core.types import BBox, PIIType, Mask
-from backend.image_detection.text_redactor.ocr.easyocr_engine import EasyOCREngine
-from backend.image_detection.text_redactor.detector.presidio_detector import PresidioDetector
-from backend.image_detection.text_redactor.detector.piiranha_detector import PiiranhaDetector
-from backend.image_detection.core.apply_blur import apply_gaussian_blur, apply_mosaic_blur
+from core.types import BBox, PIIType, Mask
+from text_redactor.ocr.easyocr_engine import EasyOCREngine
+from text_redactor.detector.presidio_detector import PresidioDetector
+from text_redactor.detector.piiranha_detector import PiiranhaDetector
+from core.apply_blur import apply_gaussian_blur, apply_mosaic_blur
 
 @dataclass
 class PipelineConfig:
