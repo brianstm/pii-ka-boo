@@ -77,7 +77,7 @@ export function PiiFilters({
                   className="flex items-center gap-2 cursor-pointer"
                 >
                   <Checkbox
-                    checked={isExcluded(item)}
+                    checked={!isExcluded(item)}
                     onCheckedChange={() => toggleItem(item)}
                   />
                   <span className="text-sm">{item}</span>
