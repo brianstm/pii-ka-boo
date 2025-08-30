@@ -51,8 +51,9 @@ def replace_custom_pattern(
         comp_type = component.get('type')
         comp_value = component.get('value')
         comp_quantity = component.get('quantity', 1)  # Default quantity is 1
-        
-        print(f"DEBUG: Processing component {i}: type={comp_type}, value={comp_value}, quantity={comp_quantity} (type: {type(comp_quantity)})", file=sys.stderr)
+
+        print(
+            f"DEBUG: Processing component {i}: type={comp_type}, value={comp_value}, quantity={comp_quantity} (type: {type(comp_quantity)})", file=sys.stderr)
 
         regex_segment = ""
         if comp_type == 'literal':
@@ -112,8 +113,9 @@ def replace_custom_pattern(
         regex_parts.append(regex_segment)
 
     final_regex_pattern = "".join(regex_parts)
-    
-    print(f"DEBUG: Final regex pattern: {final_regex_pattern}", file=sys.stderr)
+
+    print(
+        f"DEBUG: Final regex pattern: {final_regex_pattern}", file=sys.stderr)
 
     if not final_regex_pattern:
         raise ValueError(
@@ -252,32 +254,33 @@ def process_api_request():
     try:
         # Read JSON input from stdin
         input_data = json.loads(sys.stdin.readline().strip())
-        
+
         text = input_data.get('text', '')
         pattern_sequence = input_data.get('pattern_sequence', [])
         replace_by = input_data.get('replace_by', '[BLURRED]')
-        
+
         # Debug logging
         print(f"DEBUG: Received text: {text}", file=sys.stderr)
-        print(f"DEBUG: Received pattern_sequence: {pattern_sequence}", file=sys.stderr)
+        print(
+            f"DEBUG: Received pattern_sequence: {pattern_sequence}", file=sys.stderr)
         print(f"DEBUG: Received replace_by: {replace_by}", file=sys.stderr)
-        
+
         if not text or not pattern_sequence:
             print(json.dumps({
                 'error': 'Missing required fields: text and pattern_sequence'
             }))
             return
-        
+
         # Process the text using the pattern
         processed_text = replace_custom_pattern(
             original_string=text,
             pattern_sequence=pattern_sequence,
             replace_by=replace_by
         )
-        
+
         # Output the processed text
         print(processed_text)
-        
+
     except json.JSONDecodeError as e:
         print(json.dumps({
             'error': f'Invalid JSON input: {str(e)}'
@@ -303,7 +306,8 @@ if __name__ == "__main__":
 
         if generated_pattern:
             print("\nNow, let's test your custom pattern with the blurring tool!")
-            test_doc = input("Enter a document to test your pattern on: ").strip()
+            test_doc = input(
+                "Enter a document to test your pattern on: ").strip()
             replace_with = input(
                 "Replace matched pattern with (e.g., '[BLURRED]'): ").strip()
 

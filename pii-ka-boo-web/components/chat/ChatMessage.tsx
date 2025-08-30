@@ -47,6 +47,8 @@ export function ChatMessage({
   const [currentTime, setCurrentTime] = useState(0);
   const [showGeminiInputDialog, setShowGeminiInputDialog] = useState(false);
   const [showGeminiOutputDialog, setShowGeminiOutputDialog] = useState(false);
+  const [copiedInput, setCopiedInput] = useState(false);
+  const [copiedOutput, setCopiedOutput] = useState(false);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
@@ -55,6 +57,26 @@ export function ChatMessage({
       await navigator.clipboard.writeText(message.content);
       setCopied(true);
       window.setTimeout(() => setCopied(false), 1500);
+    } catch {
+      // noop
+    }
+  };
+
+  const handleCopyInput = async () => {
+    try {
+      await navigator.clipboard.writeText(piiInput || "");
+      setCopiedInput(true);
+      window.setTimeout(() => setCopiedInput(false), 1500);
+    } catch {
+      // noop
+    }
+  };
+
+  const handleCopyOutput = async () => {
+    try {
+      await navigator.clipboard.writeText(geminiOutput || "");
+      setCopiedOutput(true);
+      window.setTimeout(() => setCopiedOutput(false), 1500);
     } catch {
       // noop
     }
@@ -206,51 +228,69 @@ export function ChatMessage({
                       </div>
                     </div>
                   </DialogTrigger>
-                  <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-                    <DialogHeader>
-                      <DialogTitle>Input to Gemini</DialogTitle>
-                      <DialogDescription>
-                        The text that was sent to Gemini
-                      </DialogDescription>
+                  <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col">
+                    <DialogHeader className="sticky top-0 bg-background z-10 border-b pb-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <DialogTitle>Input to Gemini</DialogTitle>
+                          <DialogDescription>
+                            The text that was sent to Gemini
+                          </DialogDescription>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={handleCopyInput}
+                          className="h-8 w-8 p-0 -mr-2"
+                        >
+                          {copiedInput ? (
+                            <Check className="w-4 h-4" />
+                          ) : (
+                            <Copy className="w-4 h-4" />
+                          )}
+                        </Button>
+                      </div>
                     </DialogHeader>
-                    <div className="p-4 bg-muted rounded-md">
-                      <ReactMarkdown
-                        remarkPlugins={[remarkGfm]}
-                        components={{
-                          code({
-                            inline,
-                            className,
-                            children,
-                            ...props
-                          }: {
-                            inline?: boolean;
-                            className?: string;
-                            children?: React.ReactNode;
-                          }) {
-                            const isInline =
-                              inline || !/\n/.test(String(children));
-                            if (isInline) {
+                    <div className="flex-1 overflow-y-auto p-4">
+                      <div className="bg-muted rounded-md p-4">
+                        <ReactMarkdown
+                          remarkPlugins={[remarkGfm]}
+                          components={{
+                            code({
+                              inline,
+                              className,
+                              children,
+                              ...props
+                            }: {
+                              inline?: boolean;
+                              className?: string;
+                              children?: React.ReactNode;
+                            }) {
+                              const isInline =
+                                inline || !/\n/.test(String(children));
+                              if (isInline) {
+                                return (
+                                  <code
+                                    className="px-1.5 py-0.5 rounded bg-background"
+                                    {...props}
+                                  >
+                                    {children}
+                                  </code>
+                                );
+                              }
                               return (
-                                <code
-                                  className="px-1.5 py-0.5 rounded bg-background"
-                                  {...props}
-                                >
-                                  {children}
-                                </code>
+                                <pre className="p-3 rounded bg-background overflow-x-auto">
+                                  <code className={className} {...props}>
+                                    {children}
+                                  </code>
+                                </pre>
                               );
-                            }
-                            return (
-                              <pre className="p-3 rounded bg-background overflow-x-auto">
-                                <code className={className} {...props}>
-                                  {children}
-                                </code>
-                              </pre>
-                            );
-                          },
-                        }}
-                      >
-                        {piiInput}
-                      </ReactMarkdown>
+                            },
+                          }}
+                        >
+                          {piiInput}
+                        </ReactMarkdown>
+                      </div>
                     </div>
                   </DialogContent>
                 </Dialog>
@@ -276,51 +316,69 @@ export function ChatMessage({
                       </div>
                     </div>
                   </DialogTrigger>
-                  <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-                    <DialogHeader>
-                      <DialogTitle>Gemini&apos;s Output</DialogTitle>
-                      <DialogDescription>
-                        The response from Gemini with the PII placeholders
-                      </DialogDescription>
+                  <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col">
+                    <DialogHeader className="sticky top-0 bg-background z-10 border-b pb-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <DialogTitle>Gemini&apos;s Output</DialogTitle>
+                          <DialogDescription>
+                            The response from Gemini with the PII placeholders
+                          </DialogDescription>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={handleCopyOutput}
+                          className="h-8 w-8 p-0 -mr-2"
+                        >
+                          {copiedOutput ? (
+                            <Check className="w-4 h-4" />
+                          ) : (
+                            <Copy className="w-4 h-4" />
+                          )}
+                        </Button>
+                      </div>
                     </DialogHeader>
-                    <div className="p-4 bg-muted rounded-md">
-                      <ReactMarkdown
-                        remarkPlugins={[remarkGfm]}
-                        components={{
-                          code({
-                            inline,
-                            className,
-                            children,
-                            ...props
-                          }: {
-                            inline?: boolean;
-                            className?: string;
-                            children?: React.ReactNode;
-                          }) {
-                            const isInline =
-                              inline || !/\n/.test(String(children));
-                            if (isInline) {
+                    <div className="flex-1 overflow-y-auto p-4">
+                      <div className="bg-muted rounded-md p-4">
+                        <ReactMarkdown
+                          remarkPlugins={[remarkGfm]}
+                          components={{
+                            code({
+                              inline,
+                              className,
+                              children,
+                              ...props
+                            }: {
+                              inline?: boolean;
+                              className?: string;
+                              children?: React.ReactNode;
+                            }) {
+                              const isInline =
+                                inline || !/\n/.test(String(children));
+                              if (isInline) {
+                                return (
+                                  <code
+                                    className="px-1.5 py-0.5 rounded bg-background"
+                                    {...props}
+                                  >
+                                    {children}
+                                  </code>
+                                );
+                              }
                               return (
-                                <code
-                                  className="px-1.5 py-0.5 rounded bg-background"
-                                  {...props}
-                                >
-                                  {children}
-                                </code>
+                                <pre className="p-3 rounded bg-background overflow-x-auto">
+                                  <code className={className} {...props}>
+                                    {children}
+                                  </code>
+                                </pre>
                               );
-                            }
-                            return (
-                              <pre className="p-3 rounded bg-background overflow-x-auto">
-                                <code className={className} {...props}>
-                                  {children}
-                                </code>
-                              </pre>
-                            );
-                          },
-                        }}
-                      >
-                        {geminiOutput}
-                      </ReactMarkdown>
+                            },
+                          }}
+                        >
+                          {geminiOutput}
+                        </ReactMarkdown>
+                      </div>
                     </div>
                   </DialogContent>
                 </Dialog>
