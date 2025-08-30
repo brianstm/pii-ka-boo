@@ -1,7 +1,7 @@
 import os
 from typing import List, Iterable
 from transformers import pipeline
-from backend.image_detection.core.types import BBox, PIIType
+from core.types import BBox, PIIType
 
 MODEL_DIR = os.path.join(os.path.dirname(__file__), "model")
 

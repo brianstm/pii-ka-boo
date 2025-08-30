@@ -1,5 +1,5 @@
 from typing import List, Iterable
-from backend.image_detection.core.types import BBox, PIIType
+from core.types import BBox, PIIType
 
 from presidio_analyzer import AnalyzerEngine
 from presidio_analyzer.nlp_engine import NlpEngineProvider
