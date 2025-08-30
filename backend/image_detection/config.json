@@ -40,9 +40,19 @@
             "min_score" : 0.5
         }
     },
+    "geo" : {
+        "labels" : ["Singapore", "Malaysia", "Indonesia", "Thailand", "Vietnam", "Philippines"],
+        "device" : "cpu",
+        "topk" : 1,
+        "window" : 64,
+        "stride" : 32,
+        "fill" : "blur",
+        "mask_top_p" : 0.2,
+        "dilate" : 9
+    },
     "blur" : {
         "method" : "gaussian",
         "strength" : 75
     },
-    "min_ocr_confidence" : 0.4
+    "min_score" : 0.5
 }
