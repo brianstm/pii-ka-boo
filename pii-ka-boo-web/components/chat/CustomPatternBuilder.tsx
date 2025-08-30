@@ -295,14 +295,14 @@ export function CustomPatternBuilder({
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold">Custom Pattern Builder</h3>
+        <h3 className="text-lg font-semibold">Pattern Components</h3>
         <Button onClick={addComponent} size="sm">
           <Plus className="w-4 h-4 mr-2" />
           Add Component
         </Button>
       </div>
 
-      <div className="space-y-3">
+      <div className="space-y-3 max-h-[200px] overflow-y-auto">
         {patterns.map((pattern, index) => (
           <Card key={index} className="p-4">
             <div className="flex items-start gap-3">
@@ -318,6 +318,7 @@ export function CustomPatternBuilder({
                       value={pattern.type || ""}
                       onValueChange={(value) => {
                         const newType = value as PatternComponent["type"];
+
                         const updatedComponent: Partial<PatternComponent> = {
                           type: newType,
                         };
@@ -332,7 +333,6 @@ export function CustomPatternBuilder({
                         } else {
                           updatedComponent.value = "";
                         }
-
                         updateComponent(index, updatedComponent);
                       }}
                     >
@@ -400,8 +400,8 @@ export function CustomPatternBuilder({
                       className={
                         touchedFields[`literal_${index}`] &&
                         (!pattern.value || pattern.value.trim() === "")
-                          ? "border-red-500"
-                          : ""
+                          ? "text-sm border-red-500"
+                          : "text-sm"
                       }
                     />
                     {touchedFields[`literal_${index}`] &&
@@ -568,6 +568,7 @@ export function CustomPatternBuilder({
 
             <div className="space-y-2">
               <Input
+                className="text-sm"
                 value={testText}
                 onChange={(e) => setTestText(e.target.value)}
                 placeholder="Enter text to test your pattern on..."

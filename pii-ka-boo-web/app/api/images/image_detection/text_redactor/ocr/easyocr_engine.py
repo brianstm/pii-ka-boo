@@ -3,7 +3,7 @@ import numpy as np
 import cv2
 import easyocr
 
-from backend.image_detection.core.types import BBox
+from core.types import BBox
 
 class EasyOCREngine:
 
