@@ -30,6 +30,7 @@ class FileStorageService {
     originalName: string,
     type: "audio" | "image"
   ): string {
+    // If the original name is generic (like "recording.wav"), generate a timestamp-based name
     const isGenericName = /^(recording|audio|image|file|upload)\.[a-z]+$/i.test(
       originalName
     );
@@ -47,6 +48,7 @@ class FileStorageService {
       return `${timestamp}.${extension}`;
     }
 
+    // For files with meaningful names, preserve the original name but ensure uniqueness
     const now = new Date();
     const timestamp = now
       .toISOString()
@@ -62,7 +64,10 @@ class FileStorageService {
   }
 
   async saveFile(file: File, type: "audio" | "image"): Promise<StoredFile> {
-    const filename = this.generateFilename(file.name, type);
+    let filename = file.name;
+    if (type == "image") {
+      filename = this.generateFilename(file.name, type);
+    }
 
     const formData = new FormData();
     formData.append("file", file);

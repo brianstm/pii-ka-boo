@@ -77,9 +77,6 @@ class ApiService {
   }
 
   async sendMessage(request: SendMessageRequest): Promise<SendMessageResponse> {
-    console.log("here");
-    console.log("Sending message:", request);
-
     let response: SendMessageResponse;
 
     if (request.image) {
@@ -91,18 +88,12 @@ class ApiService {
         }`,
         type: "text",
       };
-    } else if (request.audio) {
-      response = {
-        message: `audio! ${
-          request.piiEnabled
-            ? "(PII scrubbing enabled)"
-            : "(PII scrubbing disabled)"
-        }`,
-        type: "text",
-      };
     } else {
+      // Audio and text both share the same API call
       const exclude = (request.piiExclusions || []).join(",");
       const qs = exclude ? `?exclude=${encodeURIComponent(exclude)}` : "";
+
+      // Make the API request for audio or text
       const res = await fetch(`/api/text${qs}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -119,13 +110,13 @@ class ApiService {
 
       const data = await res.json();
 
+      // Handle audio or text response message
       response = {
-        message: data.response, // comes from Python JSON { "response": ... }
+        message: data.response, // For text, the response comes from the API
         type: "text",
       };
     }
 
-    console.log("API Response:", response);
     return response;
   }
 
@@ -144,12 +135,25 @@ class ApiService {
 
   async transcribeAudio(audioFile: File): Promise<string> {
     console.log("Transcribing audio file:", audioFile.name);
+    const audioName = audioFile.name;
 
-    await new Promise((resolve) => setTimeout(resolve, 2000));
+    const res = await fetch(`/api/audio`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        message: audioName,
+      }),
+    });
 
-    const mockTranscription = "audio transcription!";
-    console.log("Mock transcription result:", mockTranscription);
-    return mockTranscription;
+    if (!res.ok) {
+      throw new Error(`API request failed: ${res.statusText}`);
+    }
+
+    const data = await res.json();
+
+    const response = data.response;
+    console.log("Transcription result:", response);
+    return response;
   }
 
   getAxiosInstance(): AxiosInstance {
