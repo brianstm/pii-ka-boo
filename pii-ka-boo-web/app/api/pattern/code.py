@@ -60,7 +60,7 @@ def replace_custom_pattern(
             if comp_value is None:
                 raise ValueError(
                     "Pattern component of type 'literal' requires a 'value'.")
-            regex_segment = re.escape(comp_value)
+            regex_segment = re.escape((comp_value))
         elif comp_type == 'letters':
             regex_segment = '[a-zA-Z]'
         elif comp_type == 'uppercase_letters':
@@ -154,7 +154,7 @@ def get_component_type() -> str:
         print("Invalid choice. Please enter a number from the list.")
 
 
-def get_component_value(comp_type: str) -> str | None:
+def get_component_value(comp_type: str):
     """Prompts for a literal value if the type is 'literal'."""
     if comp_type == 'literal':
         while True:
@@ -166,7 +166,7 @@ def get_component_value(comp_type: str) -> str | None:
     return None
 
 
-def get_component_quantity() -> int | str | tuple[int, int]:
+def get_component_quantity():
     """Prompts the user to select a quantity for the component."""
     quantity_options = {
         '1': 'exactly N times',
@@ -226,13 +226,16 @@ def interactive_pattern_builder():
 
         comp_type = get_component_type()
         comp_value = get_component_value(comp_type)
-        comp_quantity = get_component_quantity()
+        if comp_type != 'literal':
+            comp_quantity = get_component_quantity()
 
         component = {'type': comp_type}
         if comp_value is not None:
             component['value'] = comp_value
-        if comp_quantity != 1:  # Only add quantity if it's not the default of 1
-            component['quantity'] = comp_quantity
+
+        if comp_type != 'literal': 
+            if comp_quantity != 1:  # Only add quantity if it's not the default of 1
+                component['quantity'] = comp_quantity
 
         custom_pattern_sequence.append(component)
         print(f"\nAdded component: {component}")
