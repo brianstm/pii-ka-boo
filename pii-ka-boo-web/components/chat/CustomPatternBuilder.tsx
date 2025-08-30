@@ -52,6 +52,9 @@ export function CustomPatternBuilder({
   const [quantityTypes, setQuantityTypes] = useState<Record<number, string>>(
     {}
   );
+  const [touchedFields, setTouchedFields] = useState<Record<string, boolean>>(
+    {}
+  );
 
   const addComponent = () => {
     const newComponent: PatternComponent = {
@@ -77,6 +80,27 @@ export function CustomPatternBuilder({
         }
       });
       return newTypes;
+    });
+    setTouchedFields((prev) => {
+      const newTouched = { ...prev };
+      delete newTouched[`literal_${index}`];
+      delete newTouched[`quantity_${index}`];
+      delete newTouched[`range_min_${index}`];
+      delete newTouched[`range_max_${index}`];
+
+      Object.keys(newTouched).forEach((key) => {
+        const match = key.match(/(literal|quantity|range_min|range_max)_(\d+)/);
+        if (match) {
+          const [, fieldType, keyIndex] = match;
+          const keyNum = parseInt(keyIndex);
+          if (keyNum > index) {
+            const newKey = `${fieldType}_${keyNum - 1}`;
+            newTouched[newKey] = newTouched[key];
+            delete newTouched[key];
+          }
+        }
+      });
+      return newTouched;
     });
     onPatternChange(newPatterns);
   };
@@ -133,8 +157,79 @@ export function CustomPatternBuilder({
     updateComponent(index, { quantity });
   };
 
+  const validatePatterns = (): string | null => {
+    if (patterns.length === 0) {
+      return "No pattern components added. Please add at least one component.";
+    }
+
+    for (let i = 0; i < patterns.length; i++) {
+      const pattern = patterns[i];
+
+      if (!pattern.type) {
+        return `Component ${i + 1}: Missing pattern type.`;
+      }
+
+      const validTypes = TYPE_OPTIONS.map((opt) => opt.value);
+      if (!validTypes.includes(pattern.type)) {
+        return `Component ${i + 1}: Invalid pattern type "${pattern.type}".`;
+      }
+
+      const literalFieldKey = `literal_${i}`;
+      if (
+        pattern.type === "literal" &&
+        touchedFields[literalFieldKey] &&
+        (!pattern.value || pattern.value.trim() === "")
+      ) {
+        return `Component ${i + 1}: Literal type requires a value.`;
+      }
+
+      const quantityFieldKey = `quantity_${i}`;
+      if (
+        typeof pattern.quantity === "number" &&
+        pattern.quantity < 0 &&
+        touchedFields[quantityFieldKey]
+      ) {
+        return `Component ${i + 1}: Quantity must be non-negative, got ${
+          pattern.quantity
+        }.`;
+      }
+
+      const rangeMinFieldKey = `range_min_${i}`;
+      const rangeMaxFieldKey = `range_max_${i}`;
+      if (Array.isArray(pattern.quantity)) {
+        const [min, max] = pattern.quantity;
+        if (
+          (touchedFields[rangeMinFieldKey] && min < 0) ||
+          (touchedFields[rangeMaxFieldKey] && max < min)
+        ) {
+          return `Component ${
+            i + 1
+          }: Range must have min >= 0 and max >= min, got [${min}, ${max}].`;
+        }
+      }
+
+      const validQuantities = ["one_or_more", "zero_or_more", "optional"];
+      if (
+        typeof pattern.quantity === "string" &&
+        !validQuantities.includes(pattern.quantity)
+      ) {
+        return `Component ${i + 1}: Invalid quantity type "${
+          pattern.quantity
+        }".`;
+      }
+    }
+
+    return null;
+  };
+
   const testPattern = async () => {
     if (!testText || patterns.length === 0) return;
+
+    const validationError = validatePatterns();
+    if (validationError) {
+      setTestResult(`Validation Error: ${validationError}`);
+      return;
+    }
 
     setIsTesting(true);
     try {
@@ -155,18 +250,43 @@ export function CustomPatternBuilder({
         body: JSON.stringify(requestBody),
       });
 
+      const responseData = await response.json();
+
       if (response.ok) {
-        const result = await response.json();
-        console.log("Pattern test result:", result);
-        setTestResult(result.processed);
+        console.log("Pattern test result:", responseData);
+        setTestResult(responseData.processed);
       } else {
-        const errorText = await response.text();
-        console.error("Pattern test failed:", errorText);
-        setTestResult("Error: Pattern processing failed");
+        console.error("Pattern test failed:", responseData);
+        if (responseData.error) {
+          if (responseData.error.includes("Missing required fields")) {
+            setTestResult(
+              "Error: Missing required fields (text and pattern_sequence)"
+            );
+          } else if (responseData.error.includes("Invalid JSON input")) {
+            setTestResult("Error: Invalid request format");
+          } else if (responseData.error.includes("Pattern processing error")) {
+            setTestResult(
+              `Error: ${responseData.error.replace(
+                "Pattern processing error: ",
+                ""
+              )}`
+            );
+          } else if (responseData.error.includes("Unexpected error")) {
+            setTestResult("Error: Unexpected server error occurred");
+          } else {
+            setTestResult(`Error: ${responseData.error}`);
+          }
+        } else {
+          setTestResult("Error: Pattern processing failed");
+        }
       }
     } catch (error) {
       console.error("Pattern test error:", error);
-      setTestResult("Error: Failed to test pattern");
+      if (error instanceof TypeError && error.message.includes("fetch")) {
+        setTestResult("Error: Network error - unable to connect to server");
+      } else {
+        setTestResult("Error: Failed to test pattern");
+      }
     } finally {
       setIsTesting(false);
     }
@@ -187,16 +307,34 @@ export function CustomPatternBuilder({
           <Card key={index} className="p-4">
             <div className="flex items-start gap-3">
               <div className="flex-1 space-y-3">
-                <div className="grid grid-cols-2 gap-3">
+                <div
+                  className={`grid gap-3 ${
+                    pattern.type === "literal" ? "grid-cols-1" : "grid-cols-2"
+                  }`}
+                >
                   <div>
                     <Label>Type</Label>
                     <Select
-                      value={pattern.type}
-                      onValueChange={(value) =>
-                        updateComponent(index, {
-                          type: value as PatternComponent["type"],
-                        })
-                      }
+                      value={pattern.type || ""}
+                      onValueChange={(value) => {
+                        const newType = value as PatternComponent["type"];
+                        const updatedComponent: Partial<PatternComponent> = {
+                          type: newType,
+                        };
+
+                        if (newType === "literal") {
+                          updatedComponent.quantity = 1;
+                          updatedComponent.value = "";
+                          setQuantityTypes((prev) => ({
+                            ...prev,
+                            [index]: "1",
+                          }));
+                        } else {
+                          updatedComponent.value = "";
+                        }
+
+                        updateComponent(index, updatedComponent);
+                      }}
                     >
                       <SelectTrigger>
                         <SelectValue />
@@ -211,103 +349,200 @@ export function CustomPatternBuilder({
                     </Select>
                   </div>
 
-                  <div>
-                    <Label>Quantity</Label>
-                    <Select
-                      value={
-                        quantityTypes[index] ||
-                        (typeof pattern.quantity === "number"
-                          ? "exactly"
-                          : Array.isArray(pattern.quantity)
-                          ? "range"
-                          : (pattern.quantity as string) || "1")
-                      }
-                      onValueChange={(value) => updateQuantity(index, value)}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {QUANTITY_OPTIONS.map((option) => (
-                          <SelectItem key={option.value} value={option.value}>
-                            {option.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                  {pattern.type !== "literal" && (
+                    <div>
+                      <Label>Quantity</Label>
+                      <Select
+                        value={
+                          quantityTypes[index] ||
+                          (typeof pattern.quantity === "number"
+                            ? "exactly"
+                            : Array.isArray(pattern.quantity)
+                            ? "range"
+                            : (pattern.quantity as string) || "1")
+                        }
+                        onValueChange={(value) => updateQuantity(index, value)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {QUANTITY_OPTIONS.map((option) => (
+                            <SelectItem key={option.value} value={option.value}>
+                              {option.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
                 </div>
 
                 {pattern.type === "literal" && (
                   <div>
-                    <Label>Literal Value</Label>
+                    <Label>Literal Value *</Label>
                     <Input
                       value={pattern.value || ""}
-                      onChange={(e) =>
-                        updateComponent(index, { value: e.target.value })
-                      }
-                      placeholder="Enter exact text to match"
-                    />
-                  </div>
-                )}
-
-                {quantityTypes[index] === "exactly" && (
-                  <div>
-                    <Label>Exact Count</Label>
-                    <Input
-                      type="number"
-                      value={
-                        typeof pattern.quantity === "number"
-                          ? pattern.quantity
-                          : 1
-                      }
                       onChange={(e) => {
-                        const newQuantity = parseInt(e.target.value) || 1;
-                        updateComponent(index, { quantity: newQuantity });
-                        setQuantityTypes((prev) => ({
+                        updateComponent(index, { value: e.target.value });
+                        setTouchedFields((prev) => ({
                           ...prev,
-                          [index]: "exactly",
+                          [`literal_${index}`]: true,
                         }));
                       }}
-                      min="1"
+                      onBlur={() =>
+                        setTouchedFields((prev) => ({
+                          ...prev,
+                          [`literal_${index}`]: true,
+                        }))
+                      }
+                      placeholder="Enter exact text to match"
+                      className={
+                        touchedFields[`literal_${index}`] &&
+                        (!pattern.value || pattern.value.trim() === "")
+                          ? "border-red-500"
+                          : ""
+                      }
                     />
+                    {touchedFields[`literal_${index}`] &&
+                      (!pattern.value || pattern.value.trim() === "") && (
+                        <p className="text-xs text-red-500 mt-1">
+                          Literal type requires a value
+                        </p>
+                      )}
                   </div>
                 )}
 
-                {Array.isArray(pattern.quantity) && (
-                  <div className="grid grid-cols-2 gap-2">
+                {pattern.type !== "literal" &&
+                  quantityTypes[index] === "exactly" && (
                     <div>
-                      <Label>Min Count</Label>
+                      <Label>Exact Count</Label>
                       <Input
                         type="number"
-                        value={pattern.quantity[0]}
+                        value={
+                          typeof pattern.quantity === "number"
+                            ? pattern.quantity
+                            : 1
+                        }
                         onChange={(e) => {
-                          const min = parseInt(e.target.value) || 0;
-                          const max = Array.isArray(pattern.quantity)
-                            ? pattern.quantity[1]
-                            : min;
-                          updateComponent(index, { quantity: [min, max] });
+                          const newQuantity = parseInt(e.target.value) || 1;
+                          if (newQuantity < 0) return;
+                          updateComponent(index, { quantity: newQuantity });
+                          setQuantityTypes((prev) => ({
+                            ...prev,
+                            [index]: "exactly",
+                          }));
+                          setTouchedFields((prev) => ({
+                            ...prev,
+                            [`quantity_${index}`]: true,
+                          }));
                         }}
+                        onBlur={() =>
+                          setTouchedFields((prev) => ({
+                            ...prev,
+                            [`quantity_${index}`]: true,
+                          }))
+                        }
                         min="0"
+                        className={
+                          touchedFields[`quantity_${index}`] &&
+                          typeof pattern.quantity === "number" &&
+                          pattern.quantity < 0
+                            ? "border-red-500"
+                            : ""
+                        }
                       />
+                      {touchedFields[`quantity_${index}`] &&
+                        typeof pattern.quantity === "number" &&
+                        pattern.quantity < 0 && (
+                          <p className="text-xs text-red-500 mt-1">
+                            Quantity must be non-negative
+                          </p>
+                        )}
                     </div>
-                    <div>
-                      <Label>Max Count</Label>
-                      <Input
-                        type="number"
-                        value={pattern.quantity[1]}
-                        onChange={(e) => {
-                          const min = Array.isArray(pattern.quantity)
-                            ? pattern.quantity[0]
-                            : 0;
-                          const max = parseInt(e.target.value) || min;
-                          updateComponent(index, { quantity: [min, max] });
-                        }}
-                        min={pattern.quantity[0]}
-                      />
+                  )}
+
+                {pattern.type !== "literal" &&
+                  Array.isArray(pattern.quantity) && (
+                    <div className="space-y-2">
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <Label>Min Count</Label>
+                          <Input
+                            type="number"
+                            value={pattern.quantity[0]}
+                            onChange={(e) => {
+                              const min = parseInt(e.target.value) || 0;
+                              if (min < 0) return;
+                              const max = Array.isArray(pattern.quantity)
+                                ? pattern.quantity[1]
+                                : min;
+                              updateComponent(index, { quantity: [min, max] });
+                              setTouchedFields((prev) => ({
+                                ...prev,
+                                [`range_min_${index}`]: true,
+                              }));
+                            }}
+                            onBlur={() =>
+                              setTouchedFields((prev) => ({
+                                ...prev,
+                                [`range_min_${index}`]: true,
+                              }))
+                            }
+                            min="0"
+                            className={
+                              touchedFields[`range_min_${index}`] &&
+                              pattern.quantity[0] < 0
+                                ? "border-red-500"
+                                : ""
+                            }
+                          />
+                        </div>
+                        <div>
+                          <Label>Max Count</Label>
+                          <Input
+                            type="number"
+                            value={pattern.quantity[1]}
+                            onChange={(e) => {
+                              const min = Array.isArray(pattern.quantity)
+                                ? pattern.quantity[0]
+                                : 0;
+                              const max = parseInt(e.target.value) || min;
+                              if (max < min) return;
+                              updateComponent(index, { quantity: [min, max] });
+                              setTouchedFields((prev) => ({
+                                ...prev,
+                                [`range_max_${index}`]: true,
+                              }));
+                            }}
+                            onBlur={() =>
+                              setTouchedFields((prev) => ({
+                                ...prev,
+                                [`range_max_${index}`]: true,
+                              }))
+                            }
+                            min={pattern.quantity[0]}
+                            className={
+                              touchedFields[`range_max_${index}`] &&
+                              pattern.quantity[1] < pattern.quantity[0]
+                                ? "border-red-500"
+                                : ""
+                            }
+                          />
+                        </div>
+                      </div>
+                      {((touchedFields[`range_min_${index}`] &&
+                        pattern.quantity[0] < 0) ||
+                        (touchedFields[`range_max_${index}`] &&
+                          pattern.quantity[1] < pattern.quantity[0])) && (
+                        <p className="text-xs text-red-500">
+                          {pattern.quantity[0] < 0
+                            ? "Min count must be non-negative"
+                            : "Max count must be greater than or equal to min count"}
+                        </p>
+                      )}
                     </div>
-                  </div>
-                )}
+                  )}
               </div>
 
               <Button
@@ -340,11 +575,17 @@ export function CustomPatternBuilder({
 
               <Button
                 onClick={testPattern}
-                disabled={!testText || isTesting}
+                disabled={!testText || isTesting || validatePatterns() !== null}
                 size="sm"
+                variant={validatePatterns() !== null ? "secondary" : "default"}
               >
                 {isTesting ? "Testing..." : "Test Pattern"}
               </Button>
+              {validatePatterns() !== null && (
+                <p className="text-xs text-amber-600 mt-1">
+                  Fix validation errors before testing
+                </p>
+              )}
             </div>
 
             {testResult && (
