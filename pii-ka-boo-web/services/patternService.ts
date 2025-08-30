@@ -53,7 +53,6 @@ class PatternService {
     }
   }
 
-  // helper func to create pattern components
   createLiteralComponent(
     value: string,
     quantity: number | string | [number, number] = 1

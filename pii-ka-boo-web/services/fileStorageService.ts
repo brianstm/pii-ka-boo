@@ -30,9 +30,10 @@ class FileStorageService {
     originalName: string,
     type: "audio" | "image"
   ): string {
-    // If the original name is generic (like "recording.wav"), generate a timestamp-based name
-    const isGenericName = /^(recording|audio|image|file|upload)\.[a-z]+$/i.test(originalName);
-    
+    const isGenericName = /^(recording|audio|image|file|upload)\.[a-z]+$/i.test(
+      originalName
+    );
+
     if (isGenericName) {
       const now = new Date();
       const timestamp = now
@@ -45,18 +46,18 @@ class FileStorageService {
         originalName.split(".").pop() || (type === "audio" ? "wav" : "jpg");
       return `${timestamp}.${extension}`;
     }
-    
-    // For files with meaningful names, preserve the original name but ensure uniqueness
+
     const now = new Date();
     const timestamp = now
       .toISOString()
       .replace(/[:.]/g, "-")
       .replace("T", "_")
       .replace("Z", "");
-    
+
     const nameWithoutExt = originalName.split(".").slice(0, -1).join(".");
-    const extension = originalName.split(".").pop() || (type === "audio" ? "wav" : "jpg");
-    
+    const extension =
+      originalName.split(".").pop() || (type === "audio" ? "wav" : "jpg");
+
     return `${nameWithoutExt}_${timestamp}.${extension}`;
   }
 

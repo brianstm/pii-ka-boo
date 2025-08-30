@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
       "code.py"
     );
 
-    return new Promise((resolve) => {
+    return new Promise<NextResponse>((resolve) => {
       const pythonProcess = spawn("python3", [pythonScriptPath], {
         stdio: ["pipe", "pipe", "pipe"],
       });

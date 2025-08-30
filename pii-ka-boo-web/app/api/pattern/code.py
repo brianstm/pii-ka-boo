@@ -47,10 +47,12 @@ def replace_custom_pattern(
 
     # --- Build pattern from pattern_sequence ---
     regex_parts = []
-    for component in pattern_sequence:
+    for i, component in enumerate(pattern_sequence):
         comp_type = component.get('type')
         comp_value = component.get('value')
         comp_quantity = component.get('quantity', 1)  # Default quantity is 1
+        
+        print(f"DEBUG: Processing component {i}: type={comp_type}, value={comp_value}, quantity={comp_quantity} (type: {type(comp_quantity)})", file=sys.stderr)
 
         regex_segment = ""
         if comp_type == 'literal':
@@ -100,6 +102,9 @@ def replace_custom_pattern(
             regex_segment += '?'
         elif comp_quantity == 1:  # Default, no quantifier needed if it's just one
             pass
+        elif isinstance(comp_quantity, int) and comp_quantity > 1:
+            # Handle exact count greater than 1
+            regex_segment += f"{{{comp_quantity}}}"
         else:
             raise ValueError(
                 f"Unknown quantity type: '{comp_quantity}' for type '{comp_type}'.")
@@ -107,6 +112,8 @@ def replace_custom_pattern(
         regex_parts.append(regex_segment)
 
     final_regex_pattern = "".join(regex_parts)
+    
+    print(f"DEBUG: Final regex pattern: {final_regex_pattern}", file=sys.stderr)
 
     if not final_regex_pattern:
         raise ValueError(
@@ -249,6 +256,11 @@ def process_api_request():
         text = input_data.get('text', '')
         pattern_sequence = input_data.get('pattern_sequence', [])
         replace_by = input_data.get('replace_by', '[BLURRED]')
+        
+        # Debug logging
+        print(f"DEBUG: Received text: {text}", file=sys.stderr)
+        print(f"DEBUG: Received pattern_sequence: {pattern_sequence}", file=sys.stderr)
+        print(f"DEBUG: Received replace_by: {replace_by}", file=sys.stderr)
         
         if not text or not pattern_sequence:
             print(json.dumps({

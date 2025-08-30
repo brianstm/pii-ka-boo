@@ -3,24 +3,50 @@
 import { ChatMessage as ChatMessageType } from "@/types";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Card } from "@/components/ui/card";
-import { User, Bot, Sparkles, Play, Pause, Mic } from "lucide-react";
+import {
+  User,
+  Bot,
+  Sparkles,
+  Play,
+  Pause,
+  Mic,
+  ChevronRight,
+} from "lucide-react";
 import Image from "next/image";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Button } from "@/components/ui/button";
 import { Copy, Check } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 
 interface ChatMessageProps {
   message: ChatMessageType;
+  piiInput?: string;
+  geminiOutput?: string;
+  isPiiProcessingMessage?: boolean;
 }
 
-export function ChatMessage({ message }: ChatMessageProps) {
+export function ChatMessage({
+  message,
+  piiInput,
+  geminiOutput,
+  isPiiProcessingMessage = false,
+}: ChatMessageProps) {
   const isUser = message.role === "user";
   const [copied, setCopied] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [audioDuration, setAudioDuration] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
+  const [showGeminiInputDialog, setShowGeminiInputDialog] = useState(false);
+  const [showGeminiOutputDialog, setShowGeminiOutputDialog] = useState(false);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
@@ -146,6 +172,290 @@ export function ChatMessage({ message }: ChatMessageProps) {
     }
   }, [message.audioUrl]);
 
+  if (isPiiProcessingMessage && piiInput && geminiOutput) {
+    return (
+      <div className="flex gap-3 p-4 transition-all duration-300 group flex-row">
+        <Avatar className="w-8 h-8 flex-shrink-0 transition-transform duration-200 hover:scale-110">
+          <AvatarFallback className="transition-colors duration-200 bg-muted">
+            <Sparkles className="w-4 h-4" />
+          </AvatarFallback>
+        </Avatar>
+
+        <div className="flex flex-col max-w-[80%] items-start">
+          <div className="relative min-w-96">
+            <Card className="p-4 transition-all duration-200 hover:shadow-md bg-muted hover:bg-muted/80">
+              <div className="space-y-3">
+                <Dialog
+                  open={showGeminiInputDialog}
+                  onOpenChange={setShowGeminiInputDialog}
+                >
+                  <DialogTrigger asChild>
+                    <div className="cursor-pointer group/input">
+                      <div className="pl-3 py-2 bg-blue-50 dark:bg-blue-950/20 rounded-md border-l-4 border-blue-500">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-sm font-bold text-muted-foreground">
+                            Input to Gemini
+                          </span>
+                          <ChevronRight className="transition-transform duration-200 w-3 h-3 text-muted-foreground group-hover/input:text-foreground group-hover/input:translate-x-1" />
+                        </div>
+                        <p className="text-sm text-muted-foreground line-clamp-2">
+                          {piiInput.length > 185
+                            ? `${piiInput.substring(0, 185)}...`
+                            : piiInput}
+                        </p>
+                      </div>
+                    </div>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+                    <DialogHeader>
+                      <DialogTitle>Input to Gemini</DialogTitle>
+                      <DialogDescription>
+                        The text that was sent to Gemini
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="p-4 bg-muted rounded-md">
+                      <ReactMarkdown
+                        remarkPlugins={[remarkGfm]}
+                        components={{
+                          code({
+                            inline,
+                            className,
+                            children,
+                            ...props
+                          }: {
+                            inline?: boolean;
+                            className?: string;
+                            children?: React.ReactNode;
+                          }) {
+                            const isInline =
+                              inline || !/\n/.test(String(children));
+                            if (isInline) {
+                              return (
+                                <code
+                                  className="px-1.5 py-0.5 rounded bg-background"
+                                  {...props}
+                                >
+                                  {children}
+                                </code>
+                              );
+                            }
+                            return (
+                              <pre className="p-3 rounded bg-background overflow-x-auto">
+                                <code className={className} {...props}>
+                                  {children}
+                                </code>
+                              </pre>
+                            );
+                          },
+                        }}
+                      >
+                        {piiInput}
+                      </ReactMarkdown>
+                    </div>
+                  </DialogContent>
+                </Dialog>
+
+                <Dialog
+                  open={showGeminiOutputDialog}
+                  onOpenChange={setShowGeminiOutputDialog}
+                >
+                  <DialogTrigger asChild>
+                    <div className="cursor-pointer group/output">
+                      <div className="pl-3 py-2 bg-green-50 dark:bg-green-950/20 rounded-md border-l-4 border-green-500">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-sm font-bold text-muted-foreground">
+                            Gemini&apos;s Output
+                          </span>
+                          <ChevronRight className="transition-transform duration-200 w-3 h-3 text-muted-foreground group-hover/output:text-foreground group-hover/output:translate-x-1" />
+                        </div>
+                        <p className="text-sm text-muted-foreground line-clamp-2">
+                          {geminiOutput.length > 185
+                            ? `${geminiOutput.substring(0, 185)}...`
+                            : geminiOutput}
+                        </p>
+                      </div>
+                    </div>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+                    <DialogHeader>
+                      <DialogTitle>Gemini&apos;s Output</DialogTitle>
+                      <DialogDescription>
+                        The response from Gemini with the PII placeholders
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="p-4 bg-muted rounded-md">
+                      <ReactMarkdown
+                        remarkPlugins={[remarkGfm]}
+                        components={{
+                          code({
+                            inline,
+                            className,
+                            children,
+                            ...props
+                          }: {
+                            inline?: boolean;
+                            className?: string;
+                            children?: React.ReactNode;
+                          }) {
+                            const isInline =
+                              inline || !/\n/.test(String(children));
+                            if (isInline) {
+                              return (
+                                <code
+                                  className="px-1.5 py-0.5 rounded bg-background"
+                                  {...props}
+                                >
+                                  {children}
+                                </code>
+                              );
+                            }
+                            return (
+                              <pre className="p-3 rounded bg-background overflow-x-auto">
+                                <code className={className} {...props}>
+                                  {children}
+                                </code>
+                              </pre>
+                            );
+                          },
+                        }}
+                      >
+                        {geminiOutput}
+                      </ReactMarkdown>
+                    </div>
+                  </DialogContent>
+                </Dialog>
+
+                <div className="pt-1">
+                  <div className="prose prose-sm max-w-none dark:prose-invert">
+                    <ReactMarkdown
+                      remarkPlugins={[remarkGfm]}
+                      components={{
+                        h1: (props) => (
+                          <h1
+                            className="text-2xl font-bold mt-2 mb-3"
+                            {...props}
+                          />
+                        ),
+                        h2: (props) => (
+                          <h2
+                            className="text-xl font-semibold mt-2 mb-2"
+                            {...props}
+                          />
+                        ),
+                        h3: (props) => (
+                          <h3
+                            className="text-lg font-semibold mt-2 mb-2"
+                            {...props}
+                          />
+                        ),
+                        h4: (props) => (
+                          <h4
+                            className="text-base font-semibold mt-2 mb-1"
+                            {...props}
+                          />
+                        ),
+                        a: (props) => (
+                          <a
+                            className="underline decoration-dotted hover:decoration-solid"
+                            target="_blank"
+                            rel="noreferrer noopener"
+                            {...props}
+                          />
+                        ),
+                        ul: (props) => (
+                          <ul className="list-disc pl-6" {...props} />
+                        ),
+                        ol: (props) => (
+                          <ol className="list-decimal pl-6" {...props} />
+                        ),
+                        table: (props) => (
+                          <table
+                            className="table-auto border-collapse w-full text-left"
+                            {...props}
+                          />
+                        ),
+                        thead: (props) => (
+                          <thead className="bg-muted/50" {...props} />
+                        ),
+                        th: (props) => (
+                          <th className="border px-3 py-2" {...props} />
+                        ),
+                        td: (props) => (
+                          <td
+                            className="border px-3 py-2 align-top"
+                            {...props}
+                          />
+                        ),
+                        code({
+                          inline,
+                          className,
+                          children,
+                          ...props
+                        }: {
+                          inline?: boolean;
+                          className?: string;
+                          children?: React.ReactNode;
+                        }) {
+                          const isInline =
+                            inline || !/\n/.test(String(children));
+                          if (isInline) {
+                            return (
+                              <code
+                                className="px-1.5 py-0.5 rounded bg-muted"
+                                {...props}
+                              >
+                                {children}
+                              </code>
+                            );
+                          }
+                          return (
+                            <pre className="p-3 rounded bg-muted overflow-x-auto">
+                              <code className={className} {...props}>
+                                {children}
+                              </code>
+                            </pre>
+                          );
+                        },
+                      }}
+                    >
+                      {message.content}
+                    </ReactMarkdown>
+                  </div>
+                </div>
+              </div>
+            </Card>
+
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handleCopy}
+              className="absolute -bottom-5 -right-2 h-7 w-22 rounded-full opacity-0 bg-primary/20 hover:bg-primary/80 group-hover:opacity-100 transition-opacity z-10 text-black/70 hover:text-white dark:bg-white/40 dark:hover:bg-white/80 dark:text-black/70 dark:hover:text-black"
+            >
+              {copied ? (
+                <>
+                  <span className="text-xs">Copied</span>{" "}
+                  <Check className="w-3.5 h-3.5" />
+                </>
+              ) : (
+                <>
+                  <span className="text-xs">Copy</span>{" "}
+                  <Copy className="w-3.5 h-3.5" />
+                </>
+              )}
+            </Button>
+          </div>
+
+          <span className="text-xs text-muted-foreground mt-1 px-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+            {message.timestamp.toLocaleTimeString([], {
+              hour: "2-digit",
+              minute: "2-digit",
+            })}
+          </span>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div
       className={`flex gap-3 p-4 transition-all duration-300 group ${
@@ -242,7 +552,6 @@ export function ChatMessage({ message }: ChatMessageProps) {
                 </div>
               )}
 
-              {/* hehe */}
               {(message.audioUrl || message.audioFilename) && (
                 <audio
                   ref={audioRef}

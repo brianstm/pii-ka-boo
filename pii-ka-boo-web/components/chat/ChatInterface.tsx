@@ -322,7 +322,6 @@ export function ChatInterface() {
                 </DialogContent>
               </Dialog>
 
-              {/* Storage Settings Dialog */}
               <Dialog
                 open={showStorageSettings}
                 onOpenChange={setShowStorageSettings}
@@ -372,14 +371,50 @@ export function ChatInterface() {
                   </div>
                 )}
 
-                {messages.map((message) => (
-                  <div
-                    key={message.id}
-                    className="animate-in slide-in-from-bottom-4 duration-500"
-                  >
-                    <ChatMessage message={message} />
-                  </div>
-                ))}
+                {messages.map((message, index) => {
+                  const isPiiProcessingMessage =
+                    message.provider === "robot" &&
+                    index > 0 &&
+                    messages[index - 1]?.provider === "gemini" &&
+                    messages[index - 2]?.provider === "robot";
+
+                  const shouldHide =
+                    (message.provider === "robot" &&
+                      index < messages.length - 1 &&
+                      messages[index + 1]?.provider === "gemini" &&
+                      messages[index + 2]?.provider === "robot") ||
+                    (message.provider === "gemini" &&
+                      index > 0 &&
+                      index < messages.length - 1 &&
+                      messages[index - 1]?.provider === "robot" &&
+                      messages[index + 1]?.provider === "robot");
+
+                  let piiInput: string | undefined;
+                  let geminiOutput: string | undefined;
+
+                  if (isPiiProcessingMessage && index >= 2) {
+                    piiInput = messages[index - 2]?.content;
+                    geminiOutput = messages[index - 1]?.content;
+                  }
+
+                  if (shouldHide) {
+                    return null;
+                  }
+
+                  return (
+                    <div
+                      key={message.id}
+                      className="animate-in slide-in-from-bottom-4 duration-500"
+                    >
+                      <ChatMessage
+                        message={message}
+                        isPiiProcessingMessage={isPiiProcessingMessage}
+                        piiInput={piiInput}
+                        geminiOutput={geminiOutput}
+                      />
+                    </div>
+                  );
+                })}
 
                 {isLoading && (
                   <div className="flex gap-3 p-4 animate-in slide-in-from-bottom-2 duration-300">

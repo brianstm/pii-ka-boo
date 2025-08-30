@@ -25,7 +25,7 @@ export function replacePlaceholdersFromOriginal(
   const buildMap = (key: string, values: string[]) => {
     const map = new Map<string, string>();
     values.forEach((val, idx) => {
-      const i = idx + 1; // 1-based
+      const i = idx + 1;
       map.set(`[${key}_${i}]`, val);
       map.set(`[${key}*${i}]`, val);
     });
