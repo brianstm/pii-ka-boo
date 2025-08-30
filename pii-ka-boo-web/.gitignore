@@ -47,3 +47,5 @@ env/
 ENV/
 
 /uploads
+
+/__pycache__
