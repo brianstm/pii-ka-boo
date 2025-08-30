@@ -95,7 +95,6 @@ export function App(props: { onRender?: () => void }) {
     }
   }, []);
 
-  // Process messages to create the display structure
   const processMessages = useCallback(
     (messages: Message[]): ProcessedMessage[] => {
       const processed: ProcessedMessage[] = [];
@@ -103,21 +102,18 @@ export function App(props: { onRender?: () => void }) {
       for (let i = 0; i < messages.length; i++) {
         const message = messages[i];
 
-        // Check if this is part of a PII processing flow
         const isPiiProcessingMessage =
           message.messageType === 'restored' &&
           i >= 2 &&
           messages[i - 1]?.messageType === 'gemini' &&
           messages[i - 2]?.messageType === 'pii';
 
-        // Check if we're still loading (only PII message exists)
         const isStillLoading =
           message.messageType === 'pii' &&
           i === messages.length - 1 &&
           isLoading;
 
         if (isPiiProcessingMessage) {
-          // This is the final restored message - show the full PII processing UI
           const piiInput = messages[i - 2]?.text;
           const geminiOutput = messages[i - 1]?.text;
 
@@ -128,7 +124,6 @@ export function App(props: { onRender?: () => void }) {
             geminiOutput,
           });
         } else if (isStillLoading) {
-          // This is a PII message and we're still loading - show PII only
           processed.push({
             ...message,
             showPiiOnly: true,
@@ -137,7 +132,6 @@ export function App(props: { onRender?: () => void }) {
           message.messageType === 'pii' ||
           message.messageType === 'gemini'
         ) {
-          // Hide individual PII and Gemini messages when they're part of a flow
           const isPartOfFlow =
             (message.messageType === 'pii' &&
               i < messages.length - 1 &&
@@ -153,7 +147,6 @@ export function App(props: { onRender?: () => void }) {
             processed.push(message);
           }
         } else {
-          // Regular message (user or other)
           processed.push(message);
         }
       }
