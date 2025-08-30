@@ -33,7 +33,8 @@ function pythonExe() {
 function runPython(message: string): Promise<any> {
   return new Promise((resolve, reject) => {
     // Prepare arguments for Python script
-    const args = ["./app/api/audio/transcribe.py", message];
+    const audioPath = path.join("uploads", "audio", message);
+    const args = ["./app/api/audio/transcribe.py", audioPath];
     const process = spawn(pythonExe(), args);
 
     let output = "";
