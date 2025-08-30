@@ -55,7 +55,25 @@ export async function POST(request: NextRequest) {
 
         try {
           const lines = result.trim().split("\n");
-          const processedText = lines[lines.length - 1];
+          const lastLine = lines[lines.length - 1];
+
+          try {
+            const jsonResponse = JSON.parse(lastLine);
+            if (jsonResponse.error) {
+              resolve(
+                NextResponse.json(
+                  { error: jsonResponse.error },
+                  { status: 400 }
+                )
+              );
+              return;
+            }
+          } catch (jsonError) {
+            // nah
+            console.error("Error parsing JSON:", jsonError);
+          }
+
+          const processedText = lastLine;
 
           resolve(
             NextResponse.json({
