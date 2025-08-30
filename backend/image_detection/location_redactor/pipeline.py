@@ -1,16 +1,12 @@
 from __future__ import annotations
-import os
-import json
-import pathlib
 from dataclasses import dataclass, field
 from typing import List, Dict, Any
-import numpy as np
 import cv2
-
+import numpy as np
+import json
 
 from backend.image_detection.core.types import Mask
 from backend.image_detection.core.apply_blur import apply_gaussian_blur, apply_mosaic_blur
-
 from backend.image_detection.location_redactor.oclussion_cam import OcclusionCAM
 from backend.image_detection.location_redactor.geo_gradcam import StreetCLIPGradCAM
 
@@ -27,6 +23,12 @@ class GeoCamConfig:
     blur_method: str = "mosaic"
     blur_strength: int = 75
 
+    softmask_gamma: float = 1.0
+    softmask_smooth: float = 1e-6
+    softmask_clip_low: float = 0.0
+    softmask_clip_high: float = 1.0
+    softmask_invert: bool = False
+
     @classmethod
     def from_json(cls, path: str) -> "GeoCamConfig":
         with open(path, "r") as f:
@@ -42,8 +44,7 @@ class GeoCamConfig:
             dilate = geocam_params.get("dilate", 9),
             mask_top_p = geocam_params.get("mask_top_p", 0.2)
         )
-
-
+    
 class GeoCamPipeline:
     def __init__(self, config: GeoCamConfig):
         self.cfg = config
@@ -59,10 +60,22 @@ class GeoCamPipeline:
             k = cv2.getStructuringElement(cv2.MORPH_ELLIPSE,(dilate,dilate))
             mask = cv2.dilate(mask, k, 1)
         return mask
-    
-    def _mask_to_rects(self, mask: np.ndarray):
-        contours,_ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        return [cv2.boundingRect(c) for c in contours]
+
+    def blur_from_mask_pixels(self, img, binmask, *, ksize: int = 11, stride: int = 3, blur: str = "gaussian"):
+        h, w = img.shape[:2]
+        ys, xs = np.where(binmask > 0)
+        r = (ksize - 1) // 2
+
+        for (x, y) in zip(xs, ys):
+            x0 = max(0, x - r); y0 = max(0, y - r)
+            x1 = min(w, x + r + 1); y1 = min(h, y + r + 1)
+            if (x1 - x0) < 3 or (y1 - y0) < 3:
+                continue
+            m = Mask(x0, y0, x1 - x0, y1 - y0)
+            if blur == "gaussian":
+                apply_gaussian_blur(img, m, ksize=ksize)
+            else:
+                apply_mosaic_blur(img, m, block_size=ksize)
     
     def process_image(self, image_path: str) -> Dict[str, Any]:
         img = cv2.imread(image_path)
@@ -83,13 +96,24 @@ class GeoCamPipeline:
             heat_union = np.maximum(heat_union, heat)
 
         mask = self._heat_to_mask(heat_union, self.cfg.mask_top_p, self.cfg.dilate)
-        rects = self._mask_to_rects(mask)
-        for (x,y,ww,hh) in rects:
-            m = Mask(x,y,ww,hh)
-            if self.cfg.blur_method == 'gaussian': 
-                apply_gaussian_blur(img, m, ksize=self.cfg.blur_strength)
-            else: 
-                apply_mosaic_blur(img, m, block_size=self.cfg.blur_strength)
 
-        return {'path': image_path, 'image': img, 'top_labels': top_labels, 'top_scores': top_scores,
-                'num_regions': len(rects), 'mask_coverage': float(mask.mean()/255.0)}
+        out = img.copy()
+
+        pixel_threshold = 0.5
+        binmask = (mask >= pixel_threshold).astype(np.uint8) * 255
+
+        self.blur_from_mask_pixels(
+            out,
+            binmask,
+            ksize = self.cfg.blur_strength,
+            stride = 3,
+            blur = self.cfg.blur_method.lower()
+        )
+
+        return {
+            "path": image_path,
+            "image": out,
+            "top_labels": [labels[i] for i in top_idx],
+            "top_scores": [float(probs[i]) for i in top_idx],
+            "mask_mean": float(mask.mean()),
+        }

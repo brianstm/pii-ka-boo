@@ -52,7 +52,7 @@
     },
     "blur" : {
         "method" : "gaussian",
-        "strength" : 75
+        "strength" : 11
     },
     "min_score" : 0.5
 }
