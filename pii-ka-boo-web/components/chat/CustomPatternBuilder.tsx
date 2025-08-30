@@ -400,8 +400,8 @@ export function CustomPatternBuilder({
                       className={
                         touchedFields[`literal_${index}`] &&
                         (!pattern.value || pattern.value.trim() === "")
-                          ? "border-red-500"
-                          : ""
+                          ? "text-sm border-red-500"
+                          : "text-sm"
                       }
                     />
                     {touchedFields[`literal_${index}`] &&
@@ -568,6 +568,7 @@ export function CustomPatternBuilder({
 
             <div className="space-y-2">
               <Input
+                className="text-sm"
                 value={testText}
                 onChange={(e) => setTestText(e.target.value)}
                 placeholder="Enter text to test your pattern on..."

@@ -64,7 +64,6 @@ const GROUPS: Record<string, string[]> = {
 export function PiiFilters({
   exclusions,
   onChange,
-  onCustomPatternsChange,
   onEnabledPresetsChange,
 }: PiiFiltersProps) {
   const [presets, setPresets] = useState<CustomPreset[]>([]);
@@ -75,6 +74,7 @@ export function PiiFilters({
   const [currentPatterns, setCurrentPatterns] = useState<PatternComponent[]>(
     []
   );
+  const [isLoaded, setIsLoaded] = useState(false);
 
   useEffect(() => {
     const savedPresets = localStorage.getItem("customPatternPresets");
@@ -86,11 +86,14 @@ export function PiiFilters({
         console.error("Error loading presets from localStorage:", error);
       }
     }
+    setIsLoaded(true);
   }, []);
 
   useEffect(() => {
-    localStorage.setItem("customPatternPresets", JSON.stringify(presets));
-  }, [presets]);
+    if (isLoaded) {
+      localStorage.setItem("customPatternPresets", JSON.stringify(presets));
+    }
+  }, [presets, isLoaded]);
 
   useEffect(() => {
     const enabledPresets = presets.filter((preset) => preset.enabled);
@@ -195,7 +198,7 @@ export function PiiFilters({
           </Button>
         </div>
 
-        <div className="h-[300px] overflow-y-auto">
+        <div className="h-[250px] overflow-y-auto">
           {Object.entries(GROUPS).map(([group, items]) => (
             <div key={group} className="space-y-2">
               <div className="text-sm font-semibold opacity-80">{group}</div>
@@ -236,17 +239,15 @@ export function PiiFilters({
       {presets.length > 0 && (
         <div className="space-y-4">
           <h3 className="text-lg font-semibold">Custom Pattern Presets</h3>
-          <div className="space-y-3">
+          <div className="space-y-3 overflow-y-auto max-h-[100px]">
             {presets.map((preset) => (
               <Card key={preset.id} className="p-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3 flex-1">
                     <div className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
+                      <Checkbox
                         checked={preset.enabled}
-                        onChange={() => togglePreset(preset.id)}
-                        className="rounded"
+                        onCheckedChange={() => togglePreset(preset.id)}
                       />
                       {isEditingName === preset.id ? (
                         <div className="flex items-center gap-2">
@@ -271,10 +272,12 @@ export function PiiFilters({
                           </Button>
                         </div>
                       ) : (
-                        <span className="font-medium">{preset.name}</span>
+                        <span className="font-medium flex items-center justify-center h-full">
+                          {preset.name}
+                        </span>
                       )}
                     </div>
-                    <span className="text-sm text-gray-500">
+                    <span className="text-xs text-gray-500">
                       ({preset.patterns.length} component
                       {preset.patterns.length !== 1 ? "s" : ""})
                     </span>
@@ -346,7 +349,7 @@ export function PiiFilters({
                 value={editingName}
                 onChange={(e) => setEditingName(e.target.value)}
                 placeholder="Enter preset name..."
-                className="mt-1"
+                className="mt-1 text-sm"
               />
             </div>
 
