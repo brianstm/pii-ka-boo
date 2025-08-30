@@ -22,7 +22,6 @@ class EasyOCREngine:
             except Exception:
                 bbox, text = item
                 conf = 1.0
-            print(text)
             bbox_tuples = [(int(x), int(y)) for (x, y) in bbox]
             ocr_boxes.append(BBox(text = text, bbox = bbox_tuples, confidence = float(conf)))
         return ocr_boxes

@@ -16,17 +16,17 @@ def iter_images(path: Path):
                     yield filepath
 
 def main():
-    parser = argparse.ArgumentParser(description="Automatic PII blurring for images (OCR + Presidio).")
+    parser = argparse.ArgumentParser(description="Automatic PII and GeoLocation blurring for images.")
     parser.add_argument("--input", required=True, help="Path to an image file or a folder of images.")
     parser.add_argument("--output", required=True, help="Output folder for redacted images.")
-    parser.add_argument("--config", default="config.yaml", help="Path to YAML config.")
+    parser.add_argument("--config", default="config.json", help="Path to JSON config.")
     args = parser.parse_args()
 
     in_path = Path(args.input)
     out_dir = Path(args.output)
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    cfg = PipelineConfig.from_yaml(args.config)
+    cfg = PipelineConfig.from_json(args.config)
     pipe = PIIBlurPipeline(cfg)
 
     for img_path in iter_images(in_path):
