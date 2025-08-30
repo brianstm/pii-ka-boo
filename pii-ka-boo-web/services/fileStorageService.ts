@@ -48,7 +48,6 @@ class FileStorageService {
       return `${timestamp}.${extension}`;
     }
 
-    // For files with meaningful names, preserve the original name but ensure uniqueness
     const now = new Date();
     const timestamp = now
       .toISOString()
