@@ -1,0 +1,58 @@
+{
+    "ocr" : {
+        "engine" : "easyocr",
+        "langs" : ["en"],
+        "detail" : 1
+    },
+    "pii" : {
+        "presidio" : {
+            "language" : "en",
+            "target_entities" : [
+                "PERSON",
+                "EMAIL_ADDRESS",
+                "PHONE_NUMBER",
+                "CREDIT_CARD",
+                "IP_ADDRESS",
+                "LOCATION"
+            ]
+        },
+        "piiranha" : {
+            "model_name" : "iiiorg/piiranha-v1-detect-personal-information",
+            "target_entities" : [
+                "I-ACCOUNTNUM",
+                "I-BUILDINGNUM",
+                "I-CITY",
+                "I-CREDITCARDNUMBER",
+                "I-DATEOFBIRTH",
+                "I-DRIVERLICENSENUM",
+                "I-EMAIL",
+                "I-GIVENNAME",
+                "I-SURNAME",
+                "I-IDCARDNUM",
+                "I-PASSWORD",
+                "I-SOCIALNUM",
+                "I-STREET",
+                "I-TAXNUM",
+                "I-TELEPHONENUM",
+                "I-USERNAME",
+                "I-ZIPCODE"
+            ],
+            "min_score" : 0.5
+        }
+    },
+    "geo" : {
+        "labels" : ["Singapore", "Malaysia", "Indonesia", "Thailand", "Vietnam", "Philippines"],
+        "device" : "cpu",
+        "topk" : 1,
+        "window" : 64,
+        "stride" : 32,
+        "fill" : "blur",
+        "mask_top_p" : 0.2,
+        "dilate" : 9
+    },
+    "blur" : {
+        "method" : "gaussian",
+        "strength" : 75
+    },
+    "min_score" : 0.5
+}
