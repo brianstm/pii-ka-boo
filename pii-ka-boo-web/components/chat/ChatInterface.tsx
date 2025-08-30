@@ -420,10 +420,13 @@ export function ChatInterface() {
 
                   let piiInput: string | undefined;
                   let geminiOutput: string | undefined;
+                  let blurredImageUrl: string | undefined;
 
                   if (isPiiProcessingMessage && index >= 2) {
                     piiInput = messages[index - 2]?.content;
                     geminiOutput = messages[index - 1]?.content;
+                    // Get the blurred image URL from the first robot message (the one with imageUrl)
+                    blurredImageUrl = messages[index - 2]?.imageUrl;
                   }
 
                   if (shouldHide) {
@@ -440,6 +443,7 @@ export function ChatInterface() {
                         isPiiProcessingMessage={isPiiProcessingMessage}
                         piiInput={piiInput}
                         geminiOutput={geminiOutput}
+                        blurredImageUrl={blurredImageUrl}
                       />
                     </div>
                   );

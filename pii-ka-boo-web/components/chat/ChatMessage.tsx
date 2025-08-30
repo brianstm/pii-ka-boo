@@ -32,6 +32,7 @@ interface ChatMessageProps {
   piiInput?: string;
   geminiOutput?: string;
   isPiiProcessingMessage?: boolean;
+  blurredImageUrl?: string;
 }
 
 export function ChatMessage({
@@ -39,6 +40,7 @@ export function ChatMessage({
   piiInput,
   geminiOutput,
   isPiiProcessingMessage = false,
+  blurredImageUrl,
 }: ChatMessageProps) {
   const isUser = message.role === "user";
   const [copied, setCopied] = useState(false);
@@ -221,6 +223,7 @@ export function ChatMessage({
                           <ChevronRight className="transition-transform duration-200 w-3 h-3 text-muted-foreground group-hover/input:text-foreground group-hover/input:translate-x-1" />
                         </div>
                         <p className="text-sm text-muted-foreground line-clamp-2">
+                          {blurredImageUrl && "🖼️ "}
                           {piiInput.length > 185
                             ? `${piiInput.substring(0, 185)}...`
                             : piiInput}
@@ -234,7 +237,7 @@ export function ChatMessage({
                         <div>
                           <DialogTitle>Input to Gemini</DialogTitle>
                           <DialogDescription>
-                            The text that was sent to Gemini
+                            The text and image that were sent to Gemini
                           </DialogDescription>
                         </div>
                         <Button
@@ -252,44 +255,65 @@ export function ChatMessage({
                       </div>
                     </DialogHeader>
                     <div className="flex-1 overflow-y-auto p-4">
-                      <div className="bg-muted rounded-md p-4">
-                        <ReactMarkdown
-                          remarkPlugins={[remarkGfm]}
-                          components={{
-                            code({
-                              inline,
-                              className,
-                              children,
-                              ...props
-                            }: {
-                              inline?: boolean;
-                              className?: string;
-                              children?: React.ReactNode;
-                            }) {
-                              const isInline =
-                                inline || !/\n/.test(String(children));
-                              if (isInline) {
+                      <div className="space-y-4">
+                        {blurredImageUrl && (
+                          <div className="bg-muted rounded-md p-4">
+                            <h4 className="text-sm font-semibold mb-3 text-muted-foreground">
+                              Image sent to Gemini:
+                            </h4>
+                            <div className="relative w-full max-w-md mx-auto">
+                              <Image
+                                src={blurredImageUrl}
+                                alt="Blurred image sent to Gemini"
+                                width={400}
+                                height={400}
+                                className="rounded-md object-cover w-full h-auto"
+                              />
+                            </div>
+                          </div>
+                        )}
+                        <div className="bg-muted rounded-md p-4">
+                          <h4 className="text-sm font-semibold mb-3 text-muted-foreground">
+                            Text sent to Gemini:
+                          </h4>
+                          <ReactMarkdown
+                            remarkPlugins={[remarkGfm]}
+                            components={{
+                              code({
+                                inline,
+                                className,
+                                children,
+                                ...props
+                              }: {
+                                inline?: boolean;
+                                className?: string;
+                                children?: React.ReactNode;
+                              }) {
+                                const isInline =
+                                  inline || !/\n/.test(String(children));
+                                if (isInline) {
+                                  return (
+                                    <code
+                                      className="px-1.5 py-0.5 rounded bg-background"
+                                      {...props}
+                                    >
+                                      {children}
+                                    </code>
+                                  );
+                                }
                                 return (
-                                  <code
-                                    className="px-1.5 py-0.5 rounded bg-background"
-                                    {...props}
-                                  >
-                                    {children}
-                                  </code>
+                                  <pre className="p-3 rounded bg-background overflow-x-auto">
+                                    <code className={className} {...props}>
+                                      {children}
+                                    </code>
+                                  </pre>
                                 );
-                              }
-                              return (
-                                <pre className="p-3 rounded bg-background overflow-x-auto">
-                                  <code className={className} {...props}>
-                                    {children}
-                                  </code>
-                                </pre>
-                              );
-                            },
-                          }}
-                        >
-                          {piiInput}
-                        </ReactMarkdown>
+                              },
+                            }}
+                          >
+                            {piiInput}
+                          </ReactMarkdown>
+                        </div>
                       </div>
                     </div>
                   </DialogContent>
