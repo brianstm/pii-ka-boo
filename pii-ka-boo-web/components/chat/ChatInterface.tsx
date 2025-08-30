@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { ChatMessage as ChatMessageType, AppSettings } from "@/types";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { apiService } from "@/services/apiService";
@@ -45,6 +45,14 @@ export function ChatInterface() {
   const [customPatterns, setCustomPatterns] = useLocalStorage<
     PatternComponent[]
   >("customPatterns", []);
+  const [enabledPresets, setEnabledPresets] = useState<
+    Array<{
+      id: string;
+      name: string;
+      patterns: PatternComponent[];
+      enabled: boolean;
+    }>
+  >([]);
 
   const [isLoading, setIsLoading] = useState(false);
   const [chatLocked, setChatLocked] = useState(false);
@@ -146,13 +154,17 @@ export function ChatInterface() {
     setChatLocked(true);
 
     try {
+      const enabledPatterns = enabledPresets
+        .filter((preset) => preset.enabled)
+        .flatMap((preset) => preset.patterns);
+
       const response = await apiService.sendMessage({
         message: finalMessage,
         image,
         audio,
         piiEnabled: settings.piiEnabled,
         piiExclusions,
-        customPatterns,
+        customPatterns: enabledPatterns,
       });
 
       const assistantMessage: ChatMessageType = {
@@ -252,6 +264,19 @@ export function ChatInterface() {
                     onChange={setPiiExclusions}
                     customPatterns={customPatterns}
                     onCustomPatternsChange={setCustomPatterns}
+                    onEnabledPresetsChange={useCallback(
+                      (
+                        presets: Array<{
+                          id: string;
+                          name: string;
+                          patterns: PatternComponent[];
+                          enabled: boolean;
+                        }>
+                      ) => {
+                        setEnabledPresets(presets);
+                      },
+                      [setEnabledPresets]
+                    )}
                   />
                 </DialogContent>
               </Dialog>

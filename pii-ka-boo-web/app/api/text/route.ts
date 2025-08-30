@@ -14,29 +14,11 @@ export async function POST(req: NextRequest) {
     console.log("Received message:", message);
     console.log("Labels to redact:", labels);
     console.log("Custom patterns:", customPatterns);
+    console.log("Custom patterns length:", customPatterns.length);
 
-    // First apply custom patterns if any
+    // Custom patterns are now handled in the apiService before calling this endpoint
+    // This endpoint only handles regular PII detection
     let processedMessage = message;
-    if (customPatterns.length > 0) {
-      try {
-        const patternResponse = await fetch(`${req.nextUrl.origin}/api/pattern`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            text: message,
-            pattern_sequence: customPatterns,
-            replace_by: '[BLURRED]'
-          }),
-        });
-        
-        if (patternResponse.ok) {
-          const patternResult = await patternResponse.json();
-          processedMessage = patternResult.processed;
-        }
-      } catch (error) {
-        console.error("Error applying custom patterns:", error);
-      }
-    }
 
     const result = await runPython(processedMessage, labels);
     return NextResponse.json(result);

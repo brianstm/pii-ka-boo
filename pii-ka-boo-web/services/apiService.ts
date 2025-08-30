@@ -89,20 +89,58 @@ class ApiService {
         type: "text",
       };
     } else {
-      // Audio and text both share the same API call
-      const exclude = (request.piiExclusions || []).join(",");
-      const qs = exclude ? `?exclude=${encodeURIComponent(exclude)}` : "";
+      let processedMessage = request.message;
+      
+      // Apply custom patterns first if any
+      if (request.customPatterns && request.customPatterns.length > 0) {
+        console.log("Applying custom patterns via pattern API...");
+        
+        // Group patterns by preset (assuming patterns from same preset are consecutive)
+        // For now, we'll apply all patterns sequentially
+        for (let i = 0; i < request.customPatterns.length; i++) {
+          const pattern = request.customPatterns[i];
+          console.log(`Applying pattern ${i + 1}/${request.customPatterns.length}:`, pattern);
+          
+          try {
+            const patternRequest = {
+              text: processedMessage, // Use the processed message from previous iteration
+              pattern_sequence: [pattern], // Apply one pattern at a time
+              replace_by: '[BLURRED]'
+            };
+            
+            const patternResponse = await fetch(`/api/pattern`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(patternRequest),
+            });
+            
+            if (patternResponse.ok) {
+              const patternResult = await patternResponse.json();
+              processedMessage = patternResult.processed;
+              console.log(`Pattern ${i + 1} applied successfully. New text:`, processedMessage);
+            } else {
+              console.error(`Pattern ${i + 1} API error:`, await patternResponse.text());
+            }
+          } catch (error) {
+            console.error(`Error applying pattern ${i + 1}:`, error);
+          }
+        }
+      }
 
-      // Make the API request for audio or text
+      // Now send the processed message to the text API for regular PII detection
+      const exclude = (request.piiExclusions || []).join(",");
+      const requestBody = {
+        message: processedMessage,
+        labels: exclude.split(","),
+        customPatterns: [], // No custom patterns needed since we already processed them
+      };
+
+      console.log("Sending processed message to text API:", processedMessage);
+
       const res = await fetch(`/api/text`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          message: request.message,
-          labels: exclude.split(","),
-          // piiEnabled: request.piiEnabled,
-          // customPatterns: request.customPatterns || [],
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       if (!res.ok) {
@@ -111,9 +149,8 @@ class ApiService {
 
       const data = await res.json();
 
-      // Handle audio or text response message
       response = {
-        message: data.response, // For text, the response comes from the API
+        message: data.response,
         type: "text",
       };
     }

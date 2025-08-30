@@ -96,11 +96,14 @@ export function PiiFilters({
   }, [presets, isLoaded]);
 
   useEffect(() => {
+    if (!isLoaded) return;
+
     const enabledPresets = presets.filter((preset) => preset.enabled);
+
     if (onEnabledPresetsChange) {
       onEnabledPresetsChange(enabledPresets);
     }
-  }, [presets, onEnabledPresetsChange]);
+  }, [presets, onEnabledPresetsChange, isLoaded]);
 
   const toggleItem = (item: string) => {
     const set = new Set(exclusions);

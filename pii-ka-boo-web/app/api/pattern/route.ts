@@ -4,13 +4,13 @@ import { join } from "path";
 
 export async function POST(request: NextRequest) {
   try {
-    const {
-      text,
-      pattern_sequence,
-      replace_by = "[BLURRED]",
-    } = await request.json();
+    const body = await request.json();
+    console.log("Pattern API received body:", JSON.stringify(body, null, 2));
+
+    const { text, pattern_sequence, replace_by = "[BLURRED]" } = body;
 
     if (!text || !pattern_sequence) {
+      console.log("Pattern API missing required fields");
       return NextResponse.json(
         { error: "Missing required fields: text and pattern_sequence" },
         { status: 400 }
@@ -54,11 +54,13 @@ export async function POST(request: NextRequest) {
         }
 
         try {
-          const lines = result.trim().split("\n");
-          const lastLine = lines[lines.length - 1];
-
+          // The Python script outputs the processed text directly
+          // We need to handle both error cases (JSON) and success cases (plain text)
+          const trimmedResult = result.trim();
+          
+          // First, try to parse as JSON (for error cases)
           try {
-            const jsonResponse = JSON.parse(lastLine);
+            const jsonResponse = JSON.parse(trimmedResult);
             if (jsonResponse.error) {
               resolve(
                 NextResponse.json(
@@ -69,11 +71,12 @@ export async function POST(request: NextRequest) {
               return;
             }
           } catch (jsonError) {
-            // nah
-            console.error("Error parsing JSON:", jsonError);
+            // Not JSON, so it's the processed text
+            console.log("Python output is not JSON, treating as processed text");
           }
 
-          const processedText = lastLine;
+          // If we get here, the output is the processed text
+          const processedText = trimmedResult;
 
           resolve(
             NextResponse.json({
