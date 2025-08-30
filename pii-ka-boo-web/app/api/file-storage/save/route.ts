@@ -30,11 +30,19 @@ export async function POST(request: NextRequest) {
       await mkdir(typePath, { recursive: true });
     }
 
-    const filepath = join(typePath, filename);
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
 
+    const filepath = join(typePath, filename);
     await writeFile(filepath, buffer);
+
+    const filenameWithoutExt = filename.replace(/\.[^/.]+$/, "");
+    const fileFolderPath = join(typePath, filenameWithoutExt);
+    if (!existsSync(fileFolderPath)) {
+      await mkdir(fileFolderPath, { recursive: true });
+    }
+    const fileInFolderPath = join(fileFolderPath, filename);
+    await writeFile(fileInFolderPath, buffer);
 
     return NextResponse.json({
       success: true,
