@@ -112,6 +112,8 @@ export function ChatInterface() {
     let imageUrl: string | undefined = imageUrlFromInput;
     let audioUrl: string | undefined = audioUrlFromInput;
 
+    console.log("Debug - imageUrl:", imageUrl);
+
     if (!imageUrl && image) {
       try {
         const storedFile = await fileStorageService.saveFile(image, "image");
@@ -160,7 +162,7 @@ export function ChatInterface() {
 
       const response = await apiService.sendMessage({
         message: finalMessage,
-        image,
+        image: imageUrl ? new File([], imageUrl) : undefined,
         audio,
         piiEnabled: settings.piiEnabled,
         piiExclusions,
