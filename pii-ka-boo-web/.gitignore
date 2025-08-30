@@ -49,3 +49,4 @@ ENV/
 /uploads
 
 /__pycache__
+/IMAGE_BLUR_OUTPUT

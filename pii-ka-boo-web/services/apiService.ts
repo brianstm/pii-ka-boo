@@ -80,14 +80,36 @@ class ApiService {
     let response: SendMessageResponse;
 
     if (request.image) {
-      console.log("Debug - image:", request.image);
+      const pattern = /get\/([^?]+)/;
+      const match = request.image.name.match(pattern);
+      let imageName = "";
+      if (match && match[1]) {
+        imageName = match[1];
+        console.log("Image Name:", imageName);
+      } else {
+        console.log("No image name found in the URL.");
+      }
+
+      const requestBody = {
+        input: "./uploads/image/" + imageName,
+        output: "./IMAGE_BLUR_OUTPUT/",
+        config: "./app/api/images/image_detection/config.json",
+      };
+
+      const res = await fetch(`/api/images/image_detection`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(requestBody),
+      });
+
+      if (!res.ok) {
+        throw new Error(`API request failed: ${res.statusText}`);
+      }
+
       response = {
-        message: `image! ${
-          request.piiEnabled
-            ? "(PII scrubbing enabled)"
-            : "(PII scrubbing disabled)"
-        }`,
-        type: "text",
+        message: imageName,
+        imageUrl: `/api/serve-image?filename=${imageName}`,
+        type: "image",
       };
     } else {
       let processedMessage = request.message;
