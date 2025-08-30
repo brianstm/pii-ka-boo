@@ -94,13 +94,14 @@ class ApiService {
       const qs = exclude ? `?exclude=${encodeURIComponent(exclude)}` : "";
 
       // Make the API request for audio or text
-      const res = await fetch(`/api/text${qs}`, {
+      const res = await fetch(`/api/text`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           message: request.message,
-          piiEnabled: request.piiEnabled,
-          customPatterns: request.customPatterns || [],
+          labels: exclude.split(","),
+          // piiEnabled: request.piiEnabled,
+          // customPatterns: request.customPatterns || [],
         }),
       });
 

@@ -125,6 +125,10 @@ def merge_spans(spans):
     return merged
 
 def redact(text, target_labels=None):
+    ALL_LABELS = ["NAME", "ADDRESS", "EMAIL", "PHONE", "URL_PERSONAL", "USERNAME"]
+    if (target_labels != None):
+        target_labels = [item for item in ALL_LABELS if item not in target_labels]
+
     """
     Redact PII entities with unique identifiers.
     
