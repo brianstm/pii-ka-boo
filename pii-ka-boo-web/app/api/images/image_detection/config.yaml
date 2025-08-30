@@ -1,0 +1,49 @@
+# Default configuration for PII blurring
+ocr:
+  engine: easyocr
+  langs: ["en"]
+  detail: 1
+
+# pii:
+#   engine: presidio
+#   language: "en"
+#   target_entities:
+#     - PERSON
+#     - EMAIL_ADDRESS
+#     - PHONE_NUMBER
+#     - CREDIT_CARD
+#     - IP_ADDRESS
+#     - LOCATION
+#   min_score: 0.35 # tune this
+
+pii:
+  engine: piiranha
+  model_name: iiiorg/piiranha-v1-detect-personal-information
+  target_entities:
+     - I-ACCOUNTNUM
+     - I-BUILDINGNUM
+     - I-CITY
+     - I-CREDITCARDNUMBER
+     - I-DATEOFBIRTH
+     - I-DRIVERLICENSENUM
+     - I-EMAIL
+     - I-GIVENNAME
+     - I-SURNAME
+     - I-IDCARDNUM
+     - I-PASSWORD
+     - I-SOCIALNUM
+     - I-STREET
+     - I-TAXNUM
+     - I-TELEPHONENUM
+     - I-USERNAME
+     - I-ZIPCODE
+    
+  min_score: 0.1
+
+
+blur:
+  method: gaussian # another option can be mosaic
+  strength: 73 # idk what this is, odd int for gaussian kernel or block size for mosaic
+
+min_ocr_confidence: 0.4
+save_visual_debug: false
